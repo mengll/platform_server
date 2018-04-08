@@ -27,6 +27,7 @@ type UserDat struct {
 	UserInfo
 	Room 		string `json:"room"`
 	RoomType    string `json:"room_type"`
+	Data        string `json:"data"`
 }
 
 //存放redis——header
@@ -110,24 +111,28 @@ type(
 )
 
 //发送广播
-func clientBroadCast(c_room string,game_id string){
+func clientBroadCast(c_room string,game_id string,data string){
 	c_members := RedisClient.SMembers(c_room)
 	c_data :=  c_members.Val()
 	//给房间内的所用玩家同步信息
 	for _,v := range c_data{
 		if _,ok := ActiveClients[game_id];ok {
 			if con,oo := ActiveClients[game_id][v];oo{
-				udat := RedisClient.Get("USER:"+v).Val()
-
-				back_data := make(map[string]interface{})
-				back_data["uid"] = v
-				back_data["info"] = udat
-				back_data["room"] = c_room
-
+				udat := RedisClient.Get(fmt.Sprintf(USER_GAME_KEY,oo)).Val()
 				rep := ResponseMsg{}
 				rep.ErrorCode = SUCESS_BACK
-				rep.Data = back_data
-				rep.Msg = "start"
+				if len(data) >0 {
+					back_data := make(map[string]interface{})
+					back_data["uid"] = v
+					back_data["info"] = udat
+					back_data["room"] = c_room
+					rep.Data = back_data
+					rep.Msg  = "start"
+				}else{
+					rep.Data = data
+					rep.Msg  = "room_message"
+				}
+
 				err := con.websocket.WriteJSON(rep)  //判断用户存在，则发送响应数据
 				if err != nil{
 					//println("发送用户信息失败:",data.Room,data.GameId)
@@ -138,7 +143,6 @@ func clientBroadCast(c_room string,game_id string){
 	} //end for
 }
 
-//reday 列表中删除已开始游戏的对象
 // reday 当前准备列表的名字 c_rooms 当前房间名 查找到当前房间中的所用人，然后从列表中删除
 func delRedayMembers(reday,c_rooms string){
 	cmbers := RedisClient.SMembers(c_rooms).Val()
@@ -300,7 +304,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 						rep.ErrorCode = SUCESS_BACK
 						rep.Data = map[string]interface{}{"cmd":"start"}
 						rep.Msg = "start"
-						clientBroadCast(client_room,game_id) //广播通知当前的玩家，
+						clientBroadCast(client_room,game_id,"") //广播通知当前的玩家，
 						dd = []string{} //清空
 						return
 					}
@@ -354,6 +358,30 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 	//处理游戏结果
 	case "game_result":
 		println(123)
+
+	//退出房间
+	case "out_room":
+		room := udat.Room
+		uid  := udat.Uid
+		delSet(room,uid)
+		rep.ErrorCode = SUCESS_BACK
+		rep.Msg       = "out_room_sucess"
+
+		room_num := getSetNum(room)
+		if room_num == 0 {
+			RedisClient.Del(room)
+		}
+		ws.WriteJSON(rep)
+
+		println("玩家退出房间")
+
+	//广播
+	case "room_message":
+		room 	:= udat.Room
+		game_id := udat.GameId
+		data 	:= udat.Data
+		clientBroadCast(room,game_id,data)
+
 	}
 }
 
