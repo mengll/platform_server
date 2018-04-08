@@ -143,7 +143,7 @@ func clientBroadCast(c_room string,game_id string,data string){
 	} //end for
 }
 
-// reday 当前准备列表的名字 c_rooms 当前房间名 查找到当前房间中的所用人，然后从列表中删除
+// reday 当前准备列表的名字 c_rooms 当前房间名 查找到当前房间中的所用人
 func delRedayMembers(reday,c_rooms string){
 	cmbers := RedisClient.SMembers(c_rooms).Val()
 	for _,v := range cmbers{
@@ -210,6 +210,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		ws.WriteJSON(rep)
 
 	case "create_room":
+
 		 uid := udat.Uid
 		 user_limit := udat.UserLimit
 		 new_room := createRoom(game_id)
@@ -290,7 +291,6 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 					return
 
 				default:
-
 					fmt.Println("game_user_ad->",getSetNum(gameReady))
 					rand_user := RedisClient.SPop(gameReady)
 					uk := rand_user.Val()
@@ -317,7 +317,6 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 						dd = []string{} //清空
 						return
 					}
-
 				}
 			}
 
@@ -391,7 +390,5 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		game_id := udat.GameId
 		data 	:= udat.Data
 		clientBroadCast(room,game_id,data)
-
 	}
 }
-
