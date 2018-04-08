@@ -23,10 +23,9 @@ GOB:
 		dat := &server.UserDat{}
 		err := ws.ReadJSON(dat)
 		if err != nil{
-			println("sdaasdasd-->",err.Error()) //出错了
+			println("sdaasdasd-->",err.Error()) //数据访问出错了
 			goto GOB
 		}
-
 		go server.WsInit(ws,dat)
 	}
 

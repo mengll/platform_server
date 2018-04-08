@@ -50,14 +50,14 @@ func init(){
 	RedisClient = redis.NewClient(&redis.Options{
 		Addr:     "192.168.1.246:6379",
 		Password: "", // 设置Redis的链接的链接方法
-		DB:       0,  // use default DB
+		DB:       1,  // use default DB
 	})
 
 }
 
 //创建游戏房间
 func createRoom(gameid string) string {
-	run_num  := time.Now().Second() //执行的时间戳
+	run_num  := time.Now().Unix() //执行的时间戳
 	rand_num := rand.Intn(999999)
 	return fmt.Sprintf("%s_%d_%d",gameid,run_num,rand_num)
 }
@@ -263,7 +263,6 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		//当前房间的人数
 		addSet(gameReady,udat.Uid)
 		//todo 需要完善
-		uid_channel := make(chan string,room_limit)
 		//设置超时时间
 		ctx,_ := context.WithTimeout(context.Background(),time.Second * 10)
 		//获取当前转呗的玩家的数量
@@ -321,6 +320,13 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		ws.WriteJSON(rep)
 
 	case "logout":
+		uid     := udat.Uid
+		game_id := udat.GameId
+		delSet(fmt.Sprintf(GAME_REDAY_LIST,game_id),uid)
+		delSet(fmt.Sprintf(CLIENT_LOGIN_KYE,game_id),uid) //从登陆的数据表中删除
+		rep.ErrorCode = SUCESS_BACK
+		rep.Msg = "logout_sucess"
+		ws.WriteJSON(rep)
 	   println("玩家退出")
 
 
