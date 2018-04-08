@@ -8,6 +8,7 @@
 
 <body>
 <p id="output"></p>
+<input type="text" id="join_room">
 <input type="button" value="玩家退出" onclick="logout()">
 <input type="button" value="玩家登录" onclick="login()">
 <input type="button" value="取消匹配" onclick="join_cancel()">
@@ -15,6 +16,8 @@
 <input type="button" value="数据传递---" onclick="room_message()">
 <input type="button" value="离开房间" onclick="out_room()">
 <input type="button" value="在线数" onclick="now_online_num()">
+<input type="button" value="创建房间" onclick="create_room()">
+<input type="button" value="加入房间" onclick="join_room()">
 <script>
 
     function GetRequest() {
@@ -95,6 +98,15 @@
 
     function now_online_num() {
         ws.send(JSON.stringify({'cmd':"now_online_num","uid":uuid,"game_id":"1990"}));
+    }
+    
+    function create_room() {
+        ws.send(JSON.stringify({'cmd':"create_room","uid":uuid,"game_id":"1990","user_limit":2}));
+    }
+    
+    function join_room() {
+        var room_inner = document.getElementById("join_room").value;
+        ws.send(JSON.stringify({'cmd':"join_room","uid":uuid,"room":room_inner,"game_id":"1990"}));
     }
 
 </script>

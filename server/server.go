@@ -60,7 +60,7 @@ func init(){
 func createRoom(gameid string) string {
 	run_num  := time.Now().Unix() //执行的时间戳
 	rand_num := rand.Intn(999999)
-	return fmt.Sprintf("%s_%d_%d",gameid,run_num,rand_num)
+	return fmt.Sprintf("ROOM:%s_%d_%d",gameid,run_num,rand_num)
 }
 
 //从Redis的集合中移除数据
@@ -70,7 +70,7 @@ func delSet(key,val string){
 
 //设置key
 func setKey(k string ,v interface{}){
-	RedisClient.Set(k,v,3600)
+	RedisClient.Set(k,v,0)
 }
 
 
@@ -157,7 +157,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 	game_id 	 := udat.GameId
 	sockCli 	 := ClientConn{ws}
 	rep 		 := ResponseMsg{}
-	room_limit   := udat.UserLimit   //每个房间的人数限制
+
 
 	//判断Redis连接情况
 	redis_status := RedisClient.Ping()
@@ -210,14 +210,17 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		ws.WriteJSON(rep)
 
 	case "create_room":
+		 uid := udat.Uid
+		 user_limit := udat.UserLimit
 		 new_room := createRoom(game_id)
 		 limit_key := fmt.Sprintf("%s_limit",new_room)
-
+		 println("limit_key =>",limit_key,user_limit)
 		 //设置房间最大连接人数
-		 setKey(limit_key,strconv.Itoa(room_limit))
-		 addSet(new_room,"")
+		 setKey(limit_key,strconv.Itoa(user_limit))
+		 addSet(new_room,uid)
 		 room_dat := make(map[string]interface{})
 		 room_dat["room_id"] = new_room
+		 rep.Data = room_dat
 		 rep.Msg = "create_room_sucess"
 		 ws.WriteJSON(rep)
 
@@ -239,17 +242,22 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 			 ws.WriteJSON(rep)
 		 }
 
-		 if num > room_num{
+		 println("user_join-->",num,room_num,room)
 
+		 if num > room_num{
 			 //加入成功
 			 uid := udat.Uid
+			 game_id := udat.GameId
 			 addSet(room,uid)
 			 rep.ErrorCode = SUCESS_BACK
 
 			 now_room_num := getSetNum(room)
-
+			 println("join_room_now=>",now_room_num,num)
 			 if num == now_room_num{
+			 	println("加入完成")
 			 	//start game
+				 clientBroadCast(room,game_id,"") //广播通知当前的玩家，
+				 return
 			 }
 
 		 }else{
