@@ -35,6 +35,7 @@
 
     var loc = window.location;
     var uri = 'ws:';
+    var room = ''
 
     if (loc.protocol === 'https:') {
         uri = 'wss:';
@@ -60,9 +61,10 @@
 
         }
         //
-        if (cmd == "search_match_sucess "){
+        if (cmd == "start"){
             //开始游戏
-            console.log(dat)
+            room = dat.data.room
+            console.log(dat.data.room)
         }
         out.innerHTML += dat.cmd + '<br>';
     }
@@ -80,11 +82,11 @@
     }
 
     function search_match() {
-        ws.send(JSON.stringify({'cmd':"search_match","uid":uuid,"game_id":"1990","room_limit":2}));
+        ws.send(JSON.stringify({'cmd':"search_match","uid":uuid,"game_id":"1990","user_limit":2}));
     }
 
     function room_message() {
-        ws.send(JSON.stringify({'cmd':"room_message","uid":uuid,"game_id":"1990","room":room}));
+        ws.send(JSON.stringify({'cmd':"room_message","uid":uuid,"game_id":"1990","room":room,"data":"mengll"}));
     }
 
     function out_room() {

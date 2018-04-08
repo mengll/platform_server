@@ -121,7 +121,7 @@ func clientBroadCast(c_room string,game_id string,data string){
 				udat := RedisClient.Get(fmt.Sprintf(USER_GAME_KEY,oo)).Val()
 				rep := ResponseMsg{}
 				rep.ErrorCode = SUCESS_BACK
-				if len(data) >0 {
+				if len(data) == 0 {
 					back_data := make(map[string]interface{})
 					back_data["uid"] = v
 					back_data["info"] = udat
@@ -268,10 +268,11 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		addSet(gameReady,udat.Uid)
 		//todo 需要完善
 		//设置超时时间
-		ctx,_ := context.WithTimeout(context.Background(),time.Second * 10)
+		ctx,_ := context.WithTimeout(context.Background(),time.Second * 60)
 		//获取当前转呗的玩家的数量
 		reday_num := getSetNum(gameReady)
 		println("room_limit-->",room_limit)
+		println("game_reday",reday_num,room_limit)
 
 		if reday_num >= room_limit {
 			for{
@@ -340,7 +341,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		login_num := getSetNum(login_key)
 
 		//当前在线玩家
-		nt := time.Now().Second()
+		nt := time.Now().Unix()
 		back := make(map[string]interface{})
 		back["user_num"] = login_num
 		back["update_time"] = nt
