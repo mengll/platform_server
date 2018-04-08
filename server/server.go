@@ -104,7 +104,7 @@ type(
 	//响应返回数据
 	ResponseMsg struct {
 		ErrorCode 	int 					`json:"error_code"`
-		Data 		interface{}  `json:"data"`
+		Data 		interface{}             `json:"data"`
 		Msg 		string 					`json:"msg"`
 	}
 
@@ -328,6 +328,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		game_id := udat.GameId
 		delSet(fmt.Sprintf(GAME_REDAY_LIST,game_id),uid)
 		delSet(fmt.Sprintf(CLIENT_LOGIN_KYE,game_id),uid) //从登陆的数据表中删除
+		RedisClient.Del(fmt.Sprintf(USER_GAME_KEY,uid))   //删除玩家信息
 		rep.ErrorCode = SUCESS_BACK
 		rep.Msg = "logout_sucess"
 		ws.WriteJSON(rep)
