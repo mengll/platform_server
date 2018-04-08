@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>WebSocket</title>
+</head>
+
+<body>
+<p id="output"></p>
+
+<script>
+
+    function GetRequest() {
+        var url = location.search; //获取url中"?"符后的字串
+        var theRequest = new Object();
+        if (url.indexOf("?") != -1) {
+            var str = url.substr(1);
+            strs = str.split("&");
+            for(var i = 0; i < strs.length; i ++) {
+                theRequest[strs[i].split("=")[0]]=unescape(strs[i].split("=")[1]);
+            }
+        }
+        return theRequest;
+    }
+
+    var user_obj = GetRequest();
+    var uuid = user_obj['ucid'];
+
+    var loc = window.location;
+    var uri = 'ws:';
+
+    if (loc.protocol === 'https:') {
+        uri = 'wss:';
+    }
+    uri += '//' + loc.host;
+    uri += loc.pathname + 'gameserver';
+
+    ws = new WebSocket(uri)
+
+    ws.onopen = function() {
+        console.log('Connected')
+    }
+
+    ws.onmessage = function(evt) {
+        var out = document.getElementById('output');
+        var dat =  eval('(' + evt.data + ')');
+        console.log(dat)
+        clearInterval(st);
+        var cmd = dat.msg;
+        if (cmd == "login_sucess"){
+            //登录成功进入准备状态
+            ws.send(JSON.stringify({'cmd':"search_match","nick_name":"9527","uid":uuid,"game_id":"1990","gender":'1',"avatar":"https://avatar.anfeng.com/avatar/14523798_1515197469.png","user_limit":2}));
+
+        }
+        //
+        // if (cmd == "start"){
+        //     //开始游戏
+        //     ws.send(JSON.stringify({'room':"","content":"5432","cmd":"start","uuid":uuid,"game_id":"1990","type":'1'}));
+        // }
+        out.innerHTML += dat.cmd + '<br>';
+    }
+
+    var st = setInterval(function() {
+        ws.send(JSON.stringify({'cmd':"login","nick_name":"9527","uid":uuid,"game_id":"1990","gender":'1',"avatar":"https://avatar.anfeng.com/avatar/14523798_1515197469.png"}));
+    }, 1000);
+</script>
+</body>
+
+</html>
