@@ -104,7 +104,7 @@ type(
 	//响应返回数据
 	ResponseMsg struct {
 		ErrorCode 	int 					`json:"error_code"`
-		Data 		map[string]interface{}  `json:"data"`
+		Data 		interface{}  `json:"data"`
 		Msg 		string 					`json:"msg"`
 	}
 
