@@ -19,9 +19,8 @@ func gameserver(c echo.Context) error{
 
 GOB:
 	for{
-
 		dat := &server.UserDat{}
-		err := ws.ReadJSON(dat)
+		err := ws.ReadJSON(dat) //阻塞
 		if err != nil{
 			println("sdaasdasd-->",err.Error()) //数据访问出错了
 			goto GOB

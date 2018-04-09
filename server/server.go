@@ -27,6 +27,7 @@ type UserDat struct {
 	UserInfo
 	Room 		string `json:"room"`
 	RoomType    string `json:"room_type"`
+	Data        string `json:"data"`
 }
 
 //存放redis——header
@@ -34,6 +35,7 @@ const (
 	CLIENT_LOGIN_KYE string         = "client_logined_game_key_%s"
 	GAME_REDAY_LIST  string  		= "READY_RANDOM:%s"
 	USER_GAME_KEY    string			= "GAMEPLATFORM_USER_INFO_%s"
+	ROOM_RESULT_KEY  string			= "ROOM_RESULT_KEY:%s"
 	SUCESS_BACK int 				= 0
 	FAILED_BACK int 				= 1
 	RANDOM_USER  = "1"        //随机匹配
@@ -59,7 +61,7 @@ func init(){
 func createRoom(gameid string) string {
 	run_num  := time.Now().Unix() //执行的时间戳
 	rand_num := rand.Intn(999999)
-	return fmt.Sprintf("%s_%d_%d",gameid,run_num,rand_num)
+	return fmt.Sprintf("ROOM:%s_%d_%d",gameid,run_num,rand_num)
 }
 
 //从Redis的集合中移除数据
@@ -69,7 +71,7 @@ func delSet(key,val string){
 
 //设置key
 func setKey(k string ,v interface{}){
-	RedisClient.Set(k,v,3600)
+	RedisClient.Set(k,v,0)
 }
 
 
@@ -103,31 +105,35 @@ type(
 	//响应返回数据
 	ResponseMsg struct {
 		ErrorCode 	int 					`json:"error_code"`
-		Data 		map[string]interface{}  `json:"data"`
+		Data 		interface{}             `json:"data"`
 		Msg 		string 					`json:"msg"`
 	}
 
 )
 
 //发送广播
-func clientBroadCast(c_room string,game_id string){
+func clientBroadCast(c_room string,game_id string,data string){
 	c_members := RedisClient.SMembers(c_room)
 	c_data :=  c_members.Val()
 	//给房间内的所用玩家同步信息
 	for _,v := range c_data{
 		if _,ok := ActiveClients[game_id];ok {
 			if con,oo := ActiveClients[game_id][v];oo{
-				udat := RedisClient.Get("USER:"+v).Val()
-
-				back_data := make(map[string]interface{})
-				back_data["uid"] = v
-				back_data["info"] = udat
-				back_data["room"] = c_room
-
+				udat := RedisClient.Get(fmt.Sprintf(USER_GAME_KEY,oo)).Val()
 				rep := ResponseMsg{}
 				rep.ErrorCode = SUCESS_BACK
-				rep.Data = back_data
-				rep.Msg = "start"
+				if len(data) == 0 {
+					back_data := make(map[string]interface{})
+					back_data["uid"] = v
+					back_data["info"] = udat
+					back_data["room"] = c_room
+					rep.Data = back_data
+					rep.Msg  = "start"
+				}else{
+					rep.Data = data
+					rep.Msg  = "room_message"
+				}
+
 				err := con.websocket.WriteJSON(rep)  //判断用户存在，则发送响应数据
 				if err != nil{
 					//println("发送用户信息失败:",data.Room,data.GameId)
@@ -138,8 +144,7 @@ func clientBroadCast(c_room string,game_id string){
 	} //end for
 }
 
-//reday 列表中删除已开始游戏的对象
-// reday 当前准备列表的名字 c_rooms 当前房间名 查找到当前房间中的所用人，然后从列表中删除
+// reday 当前准备列表的名字 c_rooms 当前房间名 查找到当前房间中的所用人
 func delRedayMembers(reday,c_rooms string){
 	cmbers := RedisClient.SMembers(c_rooms).Val()
 	for _,v := range cmbers{
@@ -149,12 +154,19 @@ func delRedayMembers(reday,c_rooms string){
 }
 
 func WsInit(ws *websocket.Conn,udat *UserDat){
+
 	uid 		 := udat.Uid
 	game_id 	 := udat.GameId
 	sockCli 	 := ClientConn{ws}
 	rep 		 := ResponseMsg{}
-	room_limit   := udat.UserLimit   //每个房间的人数限制
+	println(ws.UnderlyingConn())
+	hj := ws.PingHandler()
+	err := hj("ping")
+	if err != nil{
+		println(err.Error())
+	}
 
+    println("子协议:",)
 	//判断Redis连接情况
 	redis_status := RedisClient.Ping()
 	if _,err := redis_status.Result();err !=nil{
@@ -206,14 +218,18 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		ws.WriteJSON(rep)
 
 	case "create_room":
+
+		 uid := udat.Uid
+		 user_limit := udat.UserLimit
 		 new_room := createRoom(game_id)
 		 limit_key := fmt.Sprintf("%s_limit",new_room)
-
+		 println("limit_key =>",limit_key,user_limit)
 		 //设置房间最大连接人数
-		 setKey(limit_key,strconv.Itoa(room_limit))
-		 addSet(new_room,"")
+		 setKey(limit_key,strconv.Itoa(user_limit))
+		 addSet(new_room,uid)
 		 room_dat := make(map[string]interface{})
 		 room_dat["room_id"] = new_room
+		 rep.Data = room_dat
 		 rep.Msg = "create_room_sucess"
 		 ws.WriteJSON(rep)
 
@@ -235,17 +251,22 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 			 ws.WriteJSON(rep)
 		 }
 
-		 if num > room_num{
+		 println("user_join-->",num,room_num,room)
 
+		 if num > room_num{
 			 //加入成功
 			 uid := udat.Uid
+			 game_id := udat.GameId
 			 addSet(room,uid)
 			 rep.ErrorCode = SUCESS_BACK
 
 			 now_room_num := getSetNum(room)
-
+			 println("join_room_now=>",now_room_num,num)
 			 if num == now_room_num{
+			 	println("加入完成")
 			 	//start game
+				 clientBroadCast(room,game_id,"") //广播通知当前的玩家，
+				 return
 			 }
 
 		 }else{
@@ -264,20 +285,21 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		addSet(gameReady,udat.Uid)
 		//todo 需要完善
 		//设置超时时间
-		ctx,_ := context.WithTimeout(context.Background(),time.Second * 10)
+		ctx,_ := context.WithTimeout(context.Background(),time.Second * 60)
 		//获取当前转呗的玩家的数量
 		reday_num := getSetNum(gameReady)
 		println("room_limit-->",room_limit)
+		println("game_reday",reday_num,room_limit)
 
 		if reday_num >= room_limit {
 			for{
 				select {
 				case <-ctx.Done():
+					delSet(fmt.Sprintf(GAME_REDAY_LIST,game_id),uid) //引出当前用户
 					println("time out")
 					return
 
 				default:
-
 					fmt.Println("game_user_ad->",getSetNum(gameReady))
 					rand_user := RedisClient.SPop(gameReady)
 					uk := rand_user.Val()
@@ -300,11 +322,10 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 						rep.ErrorCode = SUCESS_BACK
 						rep.Data = map[string]interface{}{"cmd":"start"}
 						rep.Msg = "start"
-						clientBroadCast(client_room,game_id) //广播通知当前的玩家，
-						dd = []string{} //清空
+						clientBroadCast(client_room,game_id,"") //广播通知当前的玩家，
+						dd = dd[:0] //清空
 						return
 					}
-
 				}
 			}
 
@@ -324,6 +345,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		game_id := udat.GameId
 		delSet(fmt.Sprintf(GAME_REDAY_LIST,game_id),uid)
 		delSet(fmt.Sprintf(CLIENT_LOGIN_KYE,game_id),uid) //从登陆的数据表中删除
+		RedisClient.Del(fmt.Sprintf(USER_GAME_KEY,uid))   //删除玩家信息
 		rep.ErrorCode = SUCESS_BACK
 		rep.Msg = "logout_sucess"
 		ws.WriteJSON(rep)
@@ -335,7 +357,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		login_num := getSetNum(login_key)
 
 		//当前在线玩家
-		nt := time.Now().Second()
+		nt := time.Now().Unix()
 		back := make(map[string]interface{})
 		back["user_num"] = login_num
 		back["update_time"] = nt
@@ -353,7 +375,56 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 
 	//处理游戏结果
 	case "game_result":
-		println(123)
-	}
-}
 
+		room := udat.Room
+		res_key := fmt.Sprintf(ROOM_RESULT_KEY,room)
+		user_limit  := getSetNum(room)
+		result_num  := getSetNum(res_key)
+		data   := udat.Data
+		game_data := make(map[string]interface{})
+		err := json.Unmarshal([]byte(data),game_data)
+		game_data["uid"] = uid
+
+		if err != nil{
+			return
+		}
+
+		if user_limit > result_num {
+			bt,err := json.Marshal(game_data)
+			if err != nil{
+				return
+			}
+			addSet(res_key,string(bt))
+			now_res := getSetNum(res_key)
+			if now_res == user_limit {
+				//结果数据处理分发
+
+			}
+		}
+		println(123)
+
+	//退出房间
+	case "out_room":
+		room := udat.Room
+		uid  := udat.Uid
+		delSet(room,uid)
+		rep.ErrorCode = SUCESS_BACK
+		rep.Msg       = "out_room_sucess"
+
+		room_num := getSetNum(room)
+		if room_num == 0 {
+			RedisClient.Del(room)
+		}
+		ws.WriteJSON(rep)
+
+		println("玩家退出房间")
+
+	//广播
+	case "room_message":
+		room 	:= udat.Room
+		game_id := udat.GameId
+		data 	:= udat.Data
+		clientBroadCast(room,game_id,data)
+	}
+
+}

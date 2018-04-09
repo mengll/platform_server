@@ -8,7 +8,16 @@
 
 <body>
 <p id="output"></p>
-
+<input type="text" id="join_room">
+<input type="button" value="玩家退出" onclick="logout()">
+<input type="button" value="玩家登录" onclick="login()">
+<input type="button" value="取消匹配" onclick="join_cancel()">
+<input type="button" value="开始匹配" onclick="search_match()">
+<input type="button" value="数据传递---" onclick="room_message()">
+<input type="button" value="离开房间" onclick="out_room()">
+<input type="button" value="在线数" onclick="now_online_num()">
+<input type="button" value="创建房间" onclick="create_room()">
+<input type="button" value="加入房间" onclick="join_room()">
 <script>
 
     function GetRequest() {
@@ -29,6 +38,7 @@
 
     var loc = window.location;
     var uri = 'ws:';
+    var room = ''
 
     if (loc.protocol === 'https:') {
         uri = 'wss:';
@@ -46,24 +56,59 @@
         var out = document.getElementById('output');
         var dat =  eval('(' + evt.data + ')');
         console.log(dat)
-        clearInterval(st);
+        // clearInterval(st);
         var cmd = dat.msg;
         if (cmd == "login_sucess"){
             //登录成功进入准备状态
-            ws.send(JSON.stringify({'cmd':"search_match","nick_name":"9527","uid":uuid,"game_id":"1990","gender":'1',"avatar":"https://avatar.anfeng.com/avatar/14523798_1515197469.png","user_limit":2}));
+          //  ws.send(JSON.stringify({'cmd':"search_match","nick_name":"9527","uid":uuid,"game_id":"1990","gender":'1',"avatar":"https://avatar.anfeng.com/avatar/14523798_1515197469.png","user_limit":2}));
 
         }
         //
-        // if (cmd == "start"){
-        //     //开始游戏
-        //     ws.send(JSON.stringify({'room':"","content":"5432","cmd":"start","uuid":uuid,"game_id":"1990","type":'1'}));
-        // }
+        if (cmd == "start"){
+            //开始游戏
+            room = dat.data.room
+            console.log(dat.data.room)
+        }
         out.innerHTML += dat.cmd + '<br>';
     }
 
-    var st = setInterval(function() {
+    function login() {
         ws.send(JSON.stringify({'cmd':"login","nick_name":"9527","uid":uuid,"game_id":"1990","gender":'1',"avatar":"https://avatar.anfeng.com/avatar/14523798_1515197469.png"}));
-    }, 1000);
+    }
+
+    function logout() {
+        ws.send(JSON.stringify({'cmd':"logout","uid":uuid,"game_id":"1990"}));
+    }
+
+    function join_cancel() {
+        ws.send(JSON.stringify({'cmd':"join_cancel","uid":uuid,"game_id":"1990"}));
+    }
+
+    function search_match() {
+        ws.send(JSON.stringify({'cmd':"search_match","uid":uuid,"game_id":"1990","user_limit":2}));
+    }
+
+    function room_message() {
+        ws.send(JSON.stringify({'cmd':"room_message","uid":uuid,"game_id":"1990","room":room,"data":"mengll"}));
+    }
+
+    function out_room() {
+        ws.send(JSON.stringify({'cmd':"out_room","uid":uuid,"game_id":"1990","room":room}));
+    }
+
+    function now_online_num() {
+        ws.send(JSON.stringify({'cmd':"now_online_num","uid":uuid,"game_id":"1990"}));
+    }
+    
+    function create_room() {
+        ws.send(JSON.stringify({'cmd':"create_room","uid":uuid,"game_id":"1990","user_limit":2}));
+    }
+    
+    function join_room() {
+        var room_inner = document.getElementById("join_room").value;
+        ws.send(JSON.stringify({'cmd':"join_room","uid":uuid,"room":room_inner,"game_id":"1990"}));
+    }
+
 </script>
 </body>
 
