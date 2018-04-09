@@ -314,7 +314,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 						rep.Data = map[string]interface{}{"cmd":"start"}
 						rep.Msg = "start"
 						clientBroadCast(client_room,game_id,"") //广播通知当前的玩家，
-						dd = []string{} //清空
+						dd = dd[:0] //清空
 						return
 					}
 				}
