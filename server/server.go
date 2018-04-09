@@ -35,6 +35,7 @@ const (
 	CLIENT_LOGIN_KYE string         = "client_logined_game_key_%s"
 	GAME_REDAY_LIST  string  		= "READY_RANDOM:%s"
 	USER_GAME_KEY    string			= "GAMEPLATFORM_USER_INFO_%s"
+	ROOM_RESULT_KEY  string			= "ROOM_RESULT_KEY:%s"
 	SUCESS_BACK int 				= 0
 	FAILED_BACK int 				= 1
 	RANDOM_USER  = "1"        //随机匹配
@@ -153,12 +154,19 @@ func delRedayMembers(reday,c_rooms string){
 }
 
 func WsInit(ws *websocket.Conn,udat *UserDat){
+
 	uid 		 := udat.Uid
 	game_id 	 := udat.GameId
 	sockCli 	 := ClientConn{ws}
 	rep 		 := ResponseMsg{}
+	println(ws.UnderlyingConn())
+	hj := ws.PingHandler()
+	err := hj("ping")
+	if err != nil{
+		println(err.Error())
+	}
 
-
+    println("子协议:",)
 	//判断Redis连接情况
 	redis_status := RedisClient.Ping()
 	if _,err := redis_status.Result();err !=nil{
@@ -287,6 +295,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 			for{
 				select {
 				case <-ctx.Done():
+					delSet(fmt.Sprintf(GAME_REDAY_LIST,game_id),uid) //引出当前用户
 					println("time out")
 					return
 
@@ -366,6 +375,32 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 
 	//处理游戏结果
 	case "game_result":
+
+		room := udat.Room
+		res_key := fmt.Sprintf(ROOM_RESULT_KEY,room)
+		user_limit  := getSetNum(room)
+		result_num  := getSetNum(res_key)
+		data   := udat.Data
+		game_data := make(map[string]interface{})
+		err := json.Unmarshal([]byte(data),game_data)
+		game_data["uid"] = uid
+
+		if err != nil{
+			return
+		}
+
+		if user_limit > result_num {
+			bt,err := json.Marshal(game_data)
+			if err != nil{
+				return
+			}
+			addSet(res_key,string(bt))
+			now_res := getSetNum(res_key)
+			if now_res == user_limit {
+				//结果数据处理分发
+
+			}
+		}
 		println(123)
 
 	//退出房间
@@ -391,4 +426,5 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		data 	:= udat.Data
 		clientBroadCast(room,game_id,data)
 	}
+
 }

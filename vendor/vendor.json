@@ -1,0 +1,31 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "UiwPUGY1FHZAa3yA4opdtIiRREY=",
+			"path": "github.com/go-redis/redis",
+			"revision": "dd76391eb986c2ea0aba41e9edde61ff7e0d4b28",
+			"revisionTime": "2017-04-05T12:32:37Z"
+		},
+		{
+			"checksumSHA1": "Y6Lqha1AVUzv6VP9Qe46UfmMOpc=",
+			"path": "github.com/gorilla/websocket",
+			"revision": "7ca4275b84a9d500f68971c8c4a97f0ec18eb889",
+			"revisionTime": "2017-11-12T12:01:55Z"
+		},
+		{
+			"checksumSHA1": "ZlcRn22hfOFXiAJvMMAlsbk5VuY=",
+			"path": "github.com/labstack/echo",
+			"revision": "b28538b2e3f5446fe6e0e47ee34cd74b662ca2ab",
+			"revisionTime": "2017-10-01T21:56:42Z"
+		},
+		{
+			"checksumSHA1": "hufFzLTirEONuqATPqDqsY1+PEw=",
+			"path": "github.com/labstack/echo/middleware",
+			"revision": "b28538b2e3f5446fe6e0e47ee34cd74b662ca2ab",
+			"revisionTime": "2017-10-01T21:56:42Z"
+		}
+	],
+	"rootPath": "platform_server"
+}
