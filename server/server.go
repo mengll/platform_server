@@ -74,7 +74,6 @@ func setKey(k string ,v interface{}){
 	RedisClient.Set(k,v,0)
 }
 
-
 //添加到集合中
 func addSet(key,val string){
 	RedisClient.SAdd(key,val)
@@ -176,6 +175,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 	}
 
 	switch udat.Cmd {
+
 	case "login":
 		println("start_login")
 		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE,udat.GameId)
@@ -394,13 +394,14 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 			if err != nil{
 				return
 			}
+
 			addSet(res_key,string(bt))
 			now_res := getSetNum(res_key)
 			if now_res == user_limit {
 				//结果数据处理分发
-
 			}
 		}
+
 		println(123)
 
 	//退出房间
@@ -408,6 +409,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 		room := udat.Room
 		uid  := udat.Uid
 		delSet(room,uid)
+
 		rep.ErrorCode = SUCESS_BACK
 		rep.Msg       = "out_room_sucess"
 
@@ -428,3 +430,7 @@ func WsInit(ws *websocket.Conn,udat *UserDat){
 	}
 
 }
+
+//当前链接地址不存在
+
+

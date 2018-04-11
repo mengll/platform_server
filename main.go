@@ -16,7 +16,6 @@ func gameserver(c echo.Context) error{
 	if err != nil {
 		return err
 	}
-
 GOB:
 	for{
 		dat := &server.UserDat{}
