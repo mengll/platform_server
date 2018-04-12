@@ -21,18 +21,18 @@ type (
 )
 
 var PgConfAdt Dbdat = Dbdat{
-	Host		: "192.168.1.53",
+	Host		: "192.168.1.241", //"192.168.1.53",
 	PassWord	: "adttianyan",
-	Port		: "5432",
+	Port		: "4453",//"5432",
 	User		: "regina",
-	DataBase	: "tianyan",
+	DataBase	: "game_platform",
 }
 
 type Pginterface interface{
 	PgConnect()
 	Pgclose()
 	Prepure(str string) (*sql.Stmt,error)
-	Ping()
+	Ping() error
 }
 
 //pgconnect 处理当前的数据库路链接
@@ -80,11 +80,12 @@ func (self *Pg) Prepure(str string)(*sql.Stmt,error){
 }
 
 //检查当前是链接
-func (self *Pg) Ping() {
+func (self *Pg) Ping() error {
 	err := self.Db.Ping()
 	if err != nil {
-		panic("pglost connect")
+		return err
 	}
+	return nil
 }
 
 //创建新的pg对象
