@@ -3,9 +3,12 @@ package main
 import (
 	"net/http"
 	"platform_server/server"
+	"platform_server/server/auth"
 
+	"github.com/gorilla/sessions"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
+	"github.com/labstack/echo-contrib/session"
 
 	"github.com/labstack/echo/middleware"
 )
@@ -43,13 +46,13 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	// e.Use(session.Middleware(sessions.NewCookieStore([]byte("secret"))))
+	e.Use(session.Middleware(sessions.NewCookieStore([]byte("secret"))))
 
 	e.Static("/", "./client/build") //创建服务
 
 	e.GET("/gameserver", gameserver)
 
-	// auth.Route(e)
+	auth.Route(e)
 
 	e.Logger.Fatal(e.Start(":1323"))
 }

@@ -1,3 +1,5 @@
+import EventEmitter from "eventemitter2";
+
 const routes = {
     start: 'af01',
     login: 'af02',
@@ -14,8 +16,24 @@ const routes = {
     game_result: 'af13',
 }
 
+const cmds = {
+    'af01': 'start',
+    'af02': 'login',
+    'af03': 'logout',
+    'af04': 'create_room',
+    'af05': 'search_match',
+    'af06': 'game_heart',
+    'af07': 'join_cancel',
+    'af08': 'room_message',
+    'af09': 'out_room',
+    'af10': 'reconnect',
+    'af11': 'now_online_num',
+    'af12': 'join_room',
+    'af13': 'game_result',
+}
 
-class Client {
+const uid = Math.random().toString();
+class Client extends EventEmitter {
     socket = new WebSocket('ws://localhost:1323/gameserver');
     pending = {}
     seq = 0;
@@ -23,11 +41,17 @@ class Client {
     _connected = false;
 
     constructor() {
+        super();
+
         this.socket.onmessage = (event) => {
-            const { error_code, data, msg, message_id: seq } = JSON.parse(event.data);
-            
+            const pack = JSON.parse(event.data);
+
+            const { error_code, data, msg, message_id: seq } = pack;
+
+            const success = error_code === 0;
+
             const response = {
-                success: error_code == 1,
+                success,
                 result: data,
                 message: msg
             }
@@ -35,10 +59,22 @@ class Client {
             const callback = this.pending[seq];
             
             if (callback) {
+                // RESPONSE
                 delete this.pending[seq];
                 callback(response);
             } else {
-                this.notify(response)
+                // NOTIFY
+                const method = cmds[msg];
+                if (method === undefined) {
+                    console.log('unknow notify', pack);
+                } else {
+                    if (success) {
+                        this.notify({
+                            method,
+                            params: data
+                        })
+                    }
+                }
             }
         }
 
@@ -48,8 +84,10 @@ class Client {
 
     }
 
-    notify(response) {
-        console.log('notify', response);
+    notify(event) {
+        console.log('notify', event);
+        const {method, params} = event;
+        this.emit(`notify.${method}`, params);
     }
 
     async connected() {
@@ -80,7 +118,7 @@ class Client {
 
                 const action = {
                     cmd,
-                    data: params,
+                    data: {...params, uid},
                     message_key: "",
                     message_id: this.seq.toString()
                 }
@@ -90,6 +128,33 @@ class Client {
                 }
 
                 this.socket.send(JSON.stringify(action))
+            }
+        )
+    }
+
+    async push(method, params) {
+        await this.connected();
+        
+        const cmd = routes[method];
+        
+        if (cmd === undefined) {
+            throw new Error("Unknow method!");
+        }
+
+        return new Promise(
+            (resolve) => {
+                ++this.seq;
+
+                const action = {
+                    cmd,
+                    data: {...params, uid},
+                    message_key: "",
+                    message_id: this.seq.toString()
+                }
+
+                this.socket.send(JSON.stringify(action))
+
+                resolve();
             }
         )
     }

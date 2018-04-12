@@ -1,6 +1,8 @@
 import React, { Component } from 'react';
 import styled from 'styled-components';
 
+import client from '../../client';
+
 const Wrapper = styled.div`
   box-sizing: border-box;
   min-height: 100vh;
@@ -180,11 +182,37 @@ const Close = styled.div`
 `
 
 export default class Matching extends Component {
+  state = {
+    matching: true,
+    seconds: 0,
+  }
+
+  timer = null;
+
+  componentDidMount() {
+    client.push('search_match', {user_limit: 2, uid: "100", game_id :"1990"})
+    client.once('notify.start', (params) => {
+      console.log('start', params);
+    })
+
+    const start = new Date();
+
+    this.timer = setInterval(() => {
+      this.setState({
+        seconds: Math.floor((new Date() - start) / 1000 )
+      })
+    }, 500)
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.timer);
+  }
+
   render() {
     return (
       <Wrapper>
-        <Title>好友正在进入房间...</Title>
-        <Time>已等待19s</Time>
+        <Title>正在匹配</Title>
+        <Time>已等待{this.state.seconds}s</Time>
         <GameName>跳一跳</GameName>
         <Profile>
           <Avatar/>

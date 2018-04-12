@@ -1,4 +1,6 @@
 import React, { Component } from 'react';
+import { Link } from 'react-router-dom';
+
 import styled from 'styled-components';
 
 const Wrapper = styled.div`
@@ -162,7 +164,9 @@ const Bottom = styled.div`
   padding: 12vw 12.5vw;
 `
 
-const MatchButton = styled.div`
+const MatchButton = styled(Link)`
+  display: block;
+  text-decoration: none;
   width: 75vw;
   height: 13vw;
   line-height: 13vw;
@@ -207,7 +211,7 @@ export default class Game extends Component {
           <RankingLink>胜点：110 &gt;</RankingLink>
         </Ranking>
         <Bottom>
-          <MatchButton>开始匹配</MatchButton>
+          <MatchButton to={'/matching'}>开始匹配</MatchButton>
           <InviteButton>找微信QQ好友一起玩</InviteButton>
         </Bottom>
       </Wrapper>

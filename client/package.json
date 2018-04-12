@@ -4,6 +4,7 @@
   "proxy": "http://localhost:1323",
   "private": true,
   "dependencies": {
+    "eventemitter2": "^5.0.1",
     "react": "^16.3.1",
     "react-dom": "^16.3.1",
     "react-router-dom": "^4.2.2",
