@@ -88,12 +88,9 @@ func Gs(ws *websocket.Conn,req_data *ReqDat)  error{
 	game_id 	:= req_data.Data["game_id"].(string)
 	uid     	:= req_data.Data["uid"].(string)
 
-	message_id := ""
-	if m_id,ok := req_data.Data["message_id"];ok{
-		message_id = m_id.(string)
-	}
 	Res := ResponeDat{}
-	Res.MessageId = message_id
+	Res.MessageId =  req_data.MessageId
+	
 	switch req_data.Cmd {
 	case LOGIN:
 		fmt.Println("login")

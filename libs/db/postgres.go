@@ -3,16 +3,12 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
-	"context"
 	"strconv"
 )
 
-
 type (
 	Pg struct {
-	Db     *sql.DB
-	Pgstmt *sql.Stmt
-	PgTx   *sql.Tx
+		Db      *sql.DB
     }
 
 	Dbdat struct {
