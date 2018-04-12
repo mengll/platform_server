@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"platform_server/models"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -32,6 +34,7 @@ type (
 		NickName string `json:"nick_name"`
 		Avatar   string `json:"avatar"`
 		Brithday string `json:"brithday"`
+		Ip       string `json:"ip"`
 	}
 
 	PfError struct {
@@ -90,6 +93,22 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 	Res := ResponeDat{}
 	Res.MessageId = req_data.MessageId
 
+	pgevent, err := models.SaveEventLog()
+	now_time := time.Now().Unix()
+
+	if err == nil {
+		_, err := pgevent.Exec(req_data.Cmd, MaptoJson(req_data.Data), now_time, req_data.MessageId)
+		if err != nil {
+			fmt.Println("event log save error", err.Error())
+		}
+	} else {
+		fmt.Println("event log error", err.Error())
+	}
+
+	if pgevent != nil {
+		pgevent.Close()
+	}
+
 	switch req_data.Cmd {
 	case LOGIN:
 		fmt.Println("login")
@@ -100,9 +119,27 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		udat.NickName = req_data.Data["nick_name"].(string)
 		udat.Gender = req_data.Data["gender"].(string)
 
+		pg, pgerr := models.SaveLoginLog()
+
+		if pgerr == nil {
+			//`uid`,`game_id`,`ts`,`nick_name`,`gender`,`birth_day`,`ip`,`avatart`
+			res, err := pg.Exec(uid, game_id, now_time, udat.NickName, udat.Gender, udat.Brithday, ws.RemoteAddr().String(), udat.Avatar, req_data.MessageId)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+			fmt.Println(res.LastInsertId())
+		} else {
+			fmt.Println(pgerr.Error())
+		}
+
+		if pg != nil {
+			pg.Close()
+		}
+
 		if _, ok := PlatFormUser[game_id]; !ok {
 			PlatFormUser[game_id] = make(map[string]*websocket.Conn)
 		}
+
 		PlatFormUser[game_id][uid] = ws
 		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE, udat.GameId)
 		login_num := PfRedis.getSetNum(login_key)
@@ -307,7 +344,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		ws.WriteJSON(Res)
 		println("玩家退出房间")
 
-	//信息传递
+		//信息传递
 	case ROOM_MESSAGE:
 
 		if _, ok := req_data.Data["room"]; !ok {
@@ -323,7 +360,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			panic(err)
 		}
 
-	//断线重连
+		//断线重连
 	case RECONNECT:
 
 		if _, ok := req_data.Data["room"]; !ok {
@@ -384,7 +421,7 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 					Res.Msg = START
 				case map[string]interface{}:
 					Res.Data = data.(map[string]interface{})
-					Res.Msg = "room_message"
+					Res.Msg = ROOM_MESSAGE
 				}
 
 				err := con.WriteJSON(Res) //判断用户存在，则发送响应数据
@@ -408,4 +445,12 @@ func IntFromFloat64(x float64) int {
 		return int(whole)
 	}
 	panic(fmt.Sprintf("%g is out of the int32 range", x))
+}
+
+func MaptoJson(data map[string]interface{}) string {
+	configJSON, err := json.MarshalIndent(data, "", "\t")
+	if err != nil {
+		return ""
+	}
+	return string(configJSON) //返回格式化后的字符串的内容0
 }

@@ -32,7 +32,8 @@ const cmds = {
     'af13': 'game_result',
 }
 
-const uid = Math.random().toString();
+const uid = Math.ceil(Math.random() * 1e8)
+
 class Client extends EventEmitter {
     socket = new WebSocket('ws://localhost:1323/gameserver');
     pending = {}
