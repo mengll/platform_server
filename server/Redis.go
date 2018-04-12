@@ -16,6 +16,7 @@ type(
 		GetKey(k string)string
 		SPop(k string) string
 		DelKey(k string) error
+		SMembers(k string)([]string,error)
 	}
 
 	GsRedisManage struct {
@@ -67,6 +68,12 @@ func(this *GsRedisManage)SPop(k string) string{
 //删除键
 func(this *GsRedisManage)DelKey(k string) error{
 	return this.RS.Del(k).Err()
+}
+
+//获取集合中的内容
+func(this *GsRedisManage)SMembers(k string)([]string,error){
+	set_val := this.RS.SMembers(k)
+	return set_val.Val(),set_val.Err()
 }
 
 //获取集合中的数量

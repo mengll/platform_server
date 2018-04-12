@@ -9,15 +9,16 @@
 <body>
 <p id="output"></p>
 <input type="text" id="join_room">
-<input type="button" value="玩家退出" onclick="logout()">
-<input type="button" value="玩家登录" onclick="login()">
-<input type="button" value="取消匹配" onclick="join_cancel()">
-<input type="button" value="开始匹配" onclick="search_match()">
-<input type="button" value="数据传递---" onclick="room_message()">
-<input type="button" value="离开房间" onclick="out_room()">
-<input type="button" value="在线数" onclick="now_online_num()">
-<input type="button" value="创建房间" onclick="create_room()">
-<input type="button" value="加入房间" onclick="join_room()">
+<input type="button" value="玩家退出" onclick="logout()"><br/>
+<input type="button" value="玩家登录" onclick="login()"><br/>
+<input type="button" value="取消匹配" onclick="join_cancel()"><br/>
+<input type="button" value="开始匹配" onclick="search_match()"><br/>
+<input type="button" value="数据传递---" onclick="room_message()"><br/>
+<input type="button" value="离开房间" onclick="out_room()"><br/>
+<input type="button" value="在线数" onclick="now_online_num()"><br/>
+<input type="button" value="创建房间" onclick="create_room()"><br/>
+<input type="button" value="加入房间" onclick="join_room()"><br/>
+<input type="button" value="重连" onclick="reconnect()"><br/>
 <script>
 
     function GetRequest() {
@@ -71,20 +72,21 @@
         out.innerHTML += dat.cmd + '<br>';
     }
 
+
     function login() {
-        ws.send(JSON.stringify({'cmd':"login","nick_name":"9527","uid":uuid,"game_id":"1990","gender":'1',"avatar":"https://avatar.anfeng.com/avatar/14523798_1515197469.png"}));
+        ws.send(JSON.stringify({'cmd':"af02","data":{"nick_name":"9527","uid":uuid,"game_id":"1990","gender":"1","avatar":"https://avatar.anfeng.com/avatar/14523798_1515197469.png"},"message_id":"222","message_key":"213"}));
     }
 
     function logout() {
-        ws.send(JSON.stringify({'cmd':"logout","uid":uuid,"game_id":"1990"}));
+        ws.send(JSON.stringify({'cmd':"af03","data":{"uid":uuid,"game_id":"1990"},"message_id":"222","message_key":"243"}));
     }
 
     function join_cancel() {
-        ws.send(JSON.stringify({'cmd':"join_cancel","uid":uuid,"game_id":"1990"}));
+        ws.send(JSON.stringify({'cmd':"af07","data":{"uid":uuid,"game_id":"1990"},"message_id":"222","message_key":"293"}));
     }
 
     function search_match() {
-        ws.send(JSON.stringify({'cmd':"search_match","uid":uuid,"game_id":"1990","user_limit":2}));
+        ws.send(JSON.stringify({'cmd':"af05","data":{"uid":uuid,"game_id":"1990","user_limit":2},"message_id":"222","message_key":"203"}));
     }
 
     function room_message() {
@@ -92,20 +94,28 @@
     }
 
     function out_room() {
-        ws.send(JSON.stringify({'cmd':"out_room","uid":uuid,"game_id":"1990","room":room}));
+        ws.send(JSON.stringify({'cmd':"af09","data":{"uid":uuid,"game_id":"1990","room":room},"message_id":"222","message_key":"2193"}));
+
     }
 
     function now_online_num() {
-        ws.send(JSON.stringify({'cmd':"now_online_num","uid":uuid,"game_id":"1990"}));
+        ws.send(JSON.stringify({'cmd':"af11","data":{"uid":uuid,"game_id":"1990"},"message_id":"222","message_key":"2932"}));
     }
     
     function create_room() {
-        ws.send(JSON.stringify({'cmd':"create_room","uid":uuid,"game_id":"1990","user_limit":2}));
+        ws.send(JSON.stringify({'cmd':"af04","data":{"uid":uuid,"game_id":"1990","user_limit":2},"message_id":"222","message_key":"203"}));
     }
     
     function join_room() {
         var room_inner = document.getElementById("join_room").value;
-        ws.send(JSON.stringify({'cmd':"join_room","uid":uuid,"room":room_inner,"game_id":"1990"}));
+        ws.send(JSON.stringify({'cmd':"af12","data":{"uid":uuid,"game_id":"1990","room":room_inner},"message_id":"222","message_key":"2193"}));
+    }
+
+    function reconnect(){
+        //没想到怎样断线
+        ws = new WebSocket(uri)
+        var room_inner = document.getElementById("join_room").value;
+        ws.send(JSON.stringify({'cmd':"af10","data":{"uid":uuid,"game_id":"1990","room":room_inner},"message_id":"222","message_key":"2193"}));
     }
 
 </script>

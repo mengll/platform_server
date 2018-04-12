@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 	"context"
+	"math"
+
 )
 
 type (
@@ -26,8 +28,8 @@ type (
 	}
 
 	UserData struct {
-		Uid string 			`json:"uid"`
-		Gender int 			`json:"gender"`
+		Uid      string 	`json:"uid"`
+		Gender   string		`json:"gender"`
 		NickName string		`json:"nick_name"`
 		Avatar   string		`json:"avatar"`
 		Brithday string		`json:"brithday"`
@@ -50,7 +52,6 @@ type (
 )
 
 //clients_connect
-var PfCdlients map[websocket.Conn] *WSDat
 
 func (self *PfError)Error() string{
 	return ""
@@ -74,15 +75,23 @@ const (
 )
 
 var (
-	PlatFormUser = make(map[string]map[string]websocket.Conn) //在线的用户的信息
+	PlatFormUser = make(map[string]map[string]*websocket.Conn) //在线的用户的信息
 	PfRedis      = NewRedis()  //平台redis
 )
 
+func init()  {
+	PfRedis.Connect()
+}
+
 //检查当前的数据格式
-func Gs(ws websocket.Conn,req_data ReqDat)  error{
+func Gs(ws *websocket.Conn,req_data *ReqDat)  error{
 	game_id 	:= req_data.Data["game_id"].(string)
 	uid     	:= req_data.Data["uid"].(string)
-	message_id  := req_data.Data["message_id"].(string)
+
+	message_id := ""
+	if m_id,ok := req_data.Data["message_id"];ok{
+		message_id = m_id.(string)
+	}
 	Res := ResponeDat{}
 	Res.MessageId = message_id
 	switch req_data.Cmd {
@@ -93,14 +102,12 @@ func Gs(ws websocket.Conn,req_data ReqDat)  error{
 		udat.Avatar  	= req_data.Data["avatar"].(string)
 		udat.GameId  	= game_id
 		udat.NickName 	= req_data.Data["nick_name"].(string)
-		udat.Gender		= req_data.Data["gender"].(int)
+		udat.Gender		= req_data.Data["gender"].(string)
 
-		if game ,ok := PlatFormUser[game_id];!ok{
-			PlatFormUser[game_id] = make(map[string]websocket.Conn)
-		}else{
-			game[uid] = ws
+		if _ ,ok := PlatFormUser[game_id];!ok{
+			PlatFormUser[game_id] = make(map[string]*websocket.Conn)
 		}
-
+		PlatFormUser[game_id][uid] = ws
 		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE,udat.GameId)
 		login_num := PfRedis.getSetNum(login_key)
 
@@ -177,7 +184,7 @@ func Gs(ws websocket.Conn,req_data ReqDat)  error{
 			if num == now_room_num{
 				println("加入完成")
 				//start game
-				clientBroadCast(room,game_id,"") //广播通知当前的玩家，
+				BroadCast(room,game_id,nil) //广播通知当前的玩家，
 			}
 
 		}else{
@@ -190,7 +197,9 @@ func Gs(ws websocket.Conn,req_data ReqDat)  error{
 
 		//匹配玩家
 	case SEARCH_MATCH:
-		room_limit := req_data.Data["user_limit"].(int) //游戏匹配的玩家的数量
+		//ad:= fmt.Sprintf("%d",req_data.Data["user_limit"].(float64)) //游戏匹配的玩家的数量
+		room_limit := IntFromFloat64(req_data.Data["user_limit"].(float64))
+
 		dd := []string{}
 		gameReady := fmt.Sprintf(GAME_REDAY_LIST,game_id)      //所有准备的用户
 
@@ -212,23 +221,16 @@ func Gs(ws websocket.Conn,req_data ReqDat)  error{
 				select {
 
 				case <-ctx.Done():
-					PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST,game_id),uid) //引出当前用户
-					println("time out")
-					break
+					//PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST,game_id),uid) //引出当前用户
+					goto TOBE
 
 				default:
-
-					fmt.Println("game_user_ad->",PfRedis.getSetNum(gameReady))
 					uk := PfRedis.SPop(gameReady)
 					if uk !="" {
 						dd = append(dd,uk )
 					}
 
-					println(fmt.Sprintf("匹配玩家%v",dd))
-
 					if len(dd) == room_limit {
-
-						println("匹配到合适玩家啦")
 
 						//创建房间
 						client_room  := createRoom(game_id)
@@ -244,14 +246,15 @@ func Gs(ws websocket.Conn,req_data ReqDat)  error{
 						Res.ErrorCode = SUCESS_BACK
 						Res.Data = map[string]interface{}{"cmd":"start"}
 						Res.Msg = "start"
-						clientBroadCast(client_room,game_id,"") //广播通知当前的玩家，
+						BroadCast(client_room,game_id,"") //广播通知当前的玩家，
 						dd = dd[:0] //清空
 						break
 					}
 				}
 			}
 		}
-
+	TOBE:
+	println("end")
 		//取消匹配
 	case JOIN_CANCEL:
 		PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST,game_id),uid)
@@ -262,6 +265,7 @@ func Gs(ws websocket.Conn,req_data ReqDat)  error{
 
 		//退出玩家
 	case LOGOUT:
+
 		PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST,game_id),uid)
 		PfRedis.delSet(fmt.Sprintf(CLIENT_LOGIN_KYE,game_id),uid) //从登陆的数据表中删除
 		PfRedis.DelKey(fmt.Sprintf(USER_GAME_KEY,uid))   //删除玩家信息
@@ -289,9 +293,9 @@ func Gs(ws websocket.Conn,req_data ReqDat)  error{
 		Res.Msg       = "scuess"
 		ws.WriteJSON(Res)
 
-
 		//退出房间
 	case OUT_ROOM:
+
 		if _,ok := req_data.Data["room"];!ok{
 			Res.ErrorCode = FAILED_BACK
 			Res.Msg = "room not found"
@@ -308,15 +312,112 @@ func Gs(ws websocket.Conn,req_data ReqDat)  error{
 			PfRedis.DelKey(room)
 		}
 		ws.WriteJSON(Res)
-
 		println("玩家退出房间")
 
-	}
+	//信息传递
+	case ROOM_MESSAGE:
+
+		if _,ok := req_data.Data["room"];!ok{
+			Res.ErrorCode = FAILED_BACK
+			Res.Msg = "room not found"
+			ws.WriteJSON(Res)
+		}
+		room := req_data.Data["room"].(string)
+		game_id := game_id
+		data 	:= req_data.Data
+		err := BroadCast(room,game_id,data)
+		if err != nil{
+			panic(err)
+		}
+
+	//断线重连
+	case RECONNECT:
+
+		if _,ok := req_data.Data["room"];!ok{
+			Res.ErrorCode = FAILED_BACK
+			Res.Msg = "room not found"
+			ws.WriteJSON(Res)
+		}
+		room := req_data.Data["room"].(string)
+
+		if PfRedis.hadSet(room,uid){
+			if game ,ok := PlatFormUser[game_id];!ok{
+				Res.ErrorCode = FAILED_BACK
+				Res.Msg = "game not found"
+				ws.WriteJSON(Res)
+			}else{
+				game[uid] = ws
+				jk := make(map[string]interface{})
+				jk["info"] = "reconnect"
+				BroadCast(room,game_id,jk)
+			}
+		}else{
+			Res.ErrorCode = FAILED_BACK
+			Res.Msg = "not found the user"
+			ws.WriteJSON(Res)
+		}
+
+
+
+	} //end switch
+
 	return nil
 }
 
+//发送广播
+func BroadCast(c_room string,game_id string,data interface{}) error{
 
+	c_data,err := PfRedis.SMembers(c_room)
+	if err != nil{
+		return err
+	}
 
+	if _,ok := PlatFormUser[game_id];ok {
+
+		//给房间内的所用玩家同步信息
+		for _,v := range c_data{
+
+				if con,oo := PlatFormUser[game_id][v];oo{
+
+					udat := PfRedis.GetKey(fmt.Sprintf(USER_GAME_KEY,oo))
+					Res := ResponeDat{}
+					Res.ErrorCode = SUCESS_BACK
+
+					switch data.(type) {
+					case string:
+						back_data := make(map[string]interface{})
+						back_data["uid"] = v
+						back_data["info"] = udat
+						back_data["room"] = c_room
+						Res.Data = back_data
+						Res.Msg  = START
+					case map[string]interface{}:
+						Res.Data = data.(map[string]interface{})
+						Res.Msg  = "room_message"
+					}
+
+					err := con.WriteJSON(Res)  //判断用户存在，则发送响应数据
+					if err != nil{
+						println("发送用户信息失败:")
+						return err
+					}
+				}
+			}
+	} //end for
+
+	return nil //最终的错误
+}
+
+func IntFromFloat64(x float64) int {
+	if math.MinInt32 <= x && x <= math.MaxInt32 { // x lies in the integer range
+		whole, fraction := math.Modf(x)
+		if fraction >= 0.5 {
+			whole++
+		}
+		return int(whole)
+	}
+	panic(fmt.Sprintf("%g is out of the int32 range", x))
+}
 
 
 
