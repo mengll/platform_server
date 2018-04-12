@@ -29,7 +29,7 @@ type (
 	}
 
 	UserData struct {
-		Uid      string 	`json:"uid"`
+		Uid      string  	`json:"uid"`
 		Gender   string		`json:"gender"`
 		NickName string		`json:"nick_name"`
 		Avatar   string		`json:"avatar"`
@@ -88,7 +88,7 @@ func init()  {
 //检查当前的数据格式
 func Gs(ws *websocket.Conn,req_data *ReqDat)  error{
 	game_id 	:= req_data.Data["game_id"].(string)
-	uid     	:= req_data.Data["uid"].(string)
+	uid     	:= 	strconv.Itoa(IntFromFloat64(req_data.Data["uid"].(float64)))
 
 	Res := ResponeDat{}
 	Res.MessageId =  req_data.MessageId
