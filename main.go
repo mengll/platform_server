@@ -48,7 +48,7 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(session.Middleware(sessions.NewCookieStore([]byte("secret"))))
 
-	e.Static("/", "./client/build") //创建服务
+	e.Static("/", "./public") //创建服务
 
 	e.GET("/gameserver", gameserver)
 

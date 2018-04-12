@@ -241,7 +241,6 @@ func Gs(ws *websocket.Conn,req_data *ReqDat)  error{
 		PfRedis.addSet(gameReady, uid)
 		//todo 需要完善
 		//设置超时时间
-
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*60)
 
 		//获取当前转呗的玩家的数量
@@ -403,6 +402,8 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 		return err
 	}
 
+	room_message := []string{}
+
 	if _, ok := PlatFormUser[game_id]; ok {
 
 		//给房间内的所用玩家同步信息
@@ -413,12 +414,12 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 				udat := PfRedis.GetKey(fmt.Sprintf(USER_GAME_KEY, oo))
 				Res := ResponeDat{}
 				Res.ErrorCode = SUCESS_BACK
-
+				room_message = append(room_message,udat)
 				switch data.(type) {
 				case string:
 					back_data := make(map[string]interface{})
 					back_data["uid"] = v
-					back_data["info"] = udat
+					back_data["info"] = room_message
 					back_data["room"] = c_room
 					Res.Data = back_data
 					Res.Msg = START
