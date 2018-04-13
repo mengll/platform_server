@@ -92,6 +92,7 @@ func (this *GsRedisManage)getSetNum(key string) int {
 
 //设置可以的实效时间
 func (this *GsRedisManage)Expire(k string ,t time.Duration)error{
+	this.setKey(k,1)
 	return this.RS.Expire(k,t).Err()
 }
 

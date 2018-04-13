@@ -95,7 +95,7 @@ var (
 
 func init() {
 	PfRedis.Connect()
-	go ClearnDisconnect()
+	//go ClearnDisconnect()
 }
 
 //检查当前的数据格式
@@ -155,7 +155,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		udat.Brithday = profile.Birthday
 
 		online_key := fmt.Sprintf(ONLINE_KEY,uid)
-		PfRedis.Expire(online_key,time.Second * 3)
+		PfRedis.Expire(online_key,time.Second * 3000)
+
 		pg, pgerr := models.SaveLoginLog()
 
 		if pgerr == nil {
@@ -537,7 +538,7 @@ func MaptoJson(data map[string]interface{}) string {
 
 //清除断线的用户信息
 func ClearnDisconnect() {
-	interval_clearn := time.NewTicker(time.Second * 3)
+	interval_clearn := time.NewTicker(time.Second * 30)
 	for {
 		select {
 		case <-interval_clearn.C:
