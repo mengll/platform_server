@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/go-redis/redis"
 	"strconv"
+	"time"
 )
 
 type(
@@ -17,6 +18,8 @@ type(
 		SPop(k string) string
 		DelKey(k string) error
 		SMembers(k string)([]string,error)
+		Expire(k string ,t time.Duration)error
+		EXISTS(k string)(bool,error)
 	}
 
 	GsRedisManage struct {
@@ -85,6 +88,25 @@ func (this *GsRedisManage)getSetNum(key string) int {
 		return 0
 	}
 	return dd
+}
+
+//设置可以的实效时间
+func (this *GsRedisManage)Expire(k string ,t time.Duration)error{
+	return this.RS.Expire(k,t).Err()
+}
+
+//判断当前的可以使是否存在
+func (this *GsRedisManage)EXISTS(k string)(bool,error){
+
+	resut,err :=  this.RS.Exists(k).Result()
+	if err == nil{
+		if re,err := strconv.Atoi(strconv.FormatInt(resut,10)); err != nil{
+			if re > 0 {
+				return true,nil
+			}
+		}
+	}
+	return false,err
 }
 
 //生成当前redis 对象
