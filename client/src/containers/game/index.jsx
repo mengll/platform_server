@@ -192,6 +192,7 @@ const InviteButton = styled.div`
 
 export default class Game extends Component {
   render() {
+    console.log('game');
     return (
       <Wrapper>
         <Header>

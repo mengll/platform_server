@@ -3,6 +3,8 @@ import styled from 'styled-components';
 
 import client from '../../client';
 
+import { Redirect } from 'react-router-dom';
+
 const Wrapper = styled.div`
   box-sizing: border-box;
   min-height: 100vh;
@@ -185,6 +187,7 @@ export default class Matching extends Component {
   state = {
     matching: true,
     seconds: 0,
+    params: null,
   }
 
   timer = null;
@@ -192,7 +195,10 @@ export default class Matching extends Component {
   componentDidMount() {
     client.push('search_match', {user_limit: 2, uid: "100", game_id :"1990"})
     client.once('notify.start', (params) => {
-      console.log('start', params);
+      this.setState({
+        matching: false,
+        params
+      })
     })
 
     const start = new Date();
@@ -209,17 +215,22 @@ export default class Matching extends Component {
   }
 
   render() {
-    return (
-      <Wrapper>
-        <Title>正在匹配</Title>
-        <Time>已等待{this.state.seconds}s</Time>
-        <GameName>跳一跳</GameName>
-        <Profile>
-          <Avatar/>
-          <UserName><NameText>liuping</NameText> <MaleGender/></UserName>
-        </Profile>
-        <Close/>
-      </Wrapper>
-    );
+    if (this.state.matching) {
+      return (
+        <Wrapper>
+          <Title>正在匹配</Title>
+          <Time>已等待{this.state.seconds}s</Time>
+          <GameName>跳一跳</GameName>
+          <Profile>
+            <Avatar/>
+            <UserName><NameText>liuping</NameText> <MaleGender/></UserName>
+          </Profile>
+          <Close/>
+        </Wrapper>
+      );
+    } else {
+      return <Redirect to={{ pathname: '/play', state: this.state.params }}/>
+    }
+
   }
 }
