@@ -24,10 +24,10 @@ type (
 	}
 
 	ResponeDat struct {
-		ErrorCode int                    `json:"error_code"`
-		Data      map[string]interface{} `json:"data"`
-		Msg       string                 `json:"msg"`
-		MessageId string                 `json:"message_id"`
+		ErrorCode int         `json:"error_code"`
+		Data      interface{} `json:"data"`
+		Msg       string      `json:"msg"`
+		MessageId string      `json:"message_id"`
 	}
 
 	UserData struct {
@@ -77,6 +77,11 @@ const (
 	JOIN_ROOM      = "af12"
 	GAME_RESULT    = "af13"
 	AUTHORIZE      = "af14"
+	TIME_OUT       = "af15"
+	DISCONNECT     = "af16"
+	ONLINE         = "af17"
+
+	ONLINE_KEY = "ONE_LINE:%s"
 )
 
 var (
@@ -90,6 +95,7 @@ var (
 
 func init() {
 	PfRedis.Connect()
+	go ClearnDisconnect()
 }
 
 //检查当前的数据格式
@@ -188,7 +194,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		//返回登录
 		Res.ErrorCode = SUCESS_BACK
 		Res.Msg = ""
-		Res.Data = back_dat
+		Res.Data = profile
 		ws.WriteJSON(Res)
 
 		//创建房间
@@ -279,12 +285,20 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 				select {
 
 				case <-ctx.Done():
-					//PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST,game_id),uid) //引出当前用户
+					PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid) //引出当前用户
+					Res.ErrorCode = FAILED_BACK
+					Res.Msg = TIME_OUT
+					ws.WriteJSON(Res)
 					goto TOBE
 
 				default:
 					uk := PfRedis.SPop(gameReady)
-					if uk != "" {
+					is_exists, err := PfRedis.EXISTS(fmt.Sprintf(ONLINE_KEY, uk))
+					if err != nil {
+						fmt.Println(err)
+						continue
+					}
+					if uk != "" && is_exists == true {
 						dd = append(dd, uk)
 					}
 
@@ -303,7 +317,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 						Res.ErrorCode = SUCESS_BACK
 						Res.Data = map[string]interface{}{"cmd": "start"}
-						Res.Msg = "start"
+						Res.Msg = START
 						BroadCast(client_room, game_id, "") //广播通知当前的玩家，
 						dd = dd[:0]                         //清空
 						break
@@ -405,15 +419,24 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			} else {
 				game[uid] = ws
 				jk := make(map[string]interface{})
-				jk["info"] = "reconnect"
+				jk["info"] = RECONNECT
 				BroadCast(room, game_id, jk)
 			}
+
 		} else {
 			Res.ErrorCode = FAILED_BACK
 			Res.Msg = "not found the user"
 			ws.WriteJSON(Res)
 		}
 
+	//心跳
+	case GAME_HEART:
+		print("game_heart")
+		Res.ErrorCode = SUCESS_BACK
+		Res.Msg = ONLINE
+		online_key := fmt.Sprintf(ONLINE_KEY, uid)
+		PfRedis.Expire(online_key, time.Second*3)
+		ws.WriteJSON(Res)
 	} //end switch
 
 	return nil
@@ -490,4 +513,32 @@ func MaptoJson(data map[string]interface{}) string {
 		return ""
 	}
 	return string(configJSON) //返回格式化后的字符串的内容0
+}
+
+//清除断线的用户信息
+func ClearnDisconnect() {
+	interval_clearn := time.NewTicker(time.Second * 3)
+	for {
+		select {
+		case <-interval_clearn.C:
+			fmt.Println("clear user")
+			for game_id, v := range PlatFormUser {
+				for uid, _ := range v {
+
+					is_exists, err := PfRedis.EXISTS(fmt.Sprintf(ONLINE_KEY, uid))
+					if err != nil {
+						fmt.Println(err)
+						continue
+					}
+					//不存在
+					if is_exists == false {
+						PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
+						PfRedis.delSet(fmt.Sprintf(CLIENT_LOGIN_KYE, game_id), uid) //从登陆的数据表中删除
+						delete(PlatFormUser[game_id], uid)                          //移除ws对象
+					}
+
+				}
+			}
+		}
+	}
 }
