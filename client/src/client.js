@@ -15,7 +15,6 @@ const routes = {
     join_room: 'af12',
     game_result: 'af13',
     authorize: 'af14',
-    
 }
 
 const cmds = {
@@ -35,7 +34,6 @@ const cmds = {
     'af14': 'authorize',
 }
 
-const uid = Math.ceil(Math.random() * 1e8);
 const game_id = "1998";
 class Client extends EventEmitter {
     socket = new WebSocket('ws://localhost:1323/gameserver');
@@ -107,7 +105,10 @@ class Client extends EventEmitter {
     }
 
 
+
+
     async call(method, params) {
+
         await this.connected();
         
         const cmd = routes[method];
@@ -122,7 +123,7 @@ class Client extends EventEmitter {
 
                 const action = {
                     cmd,
-                    data: {...params, uid, game_id},
+                    data: {...params, game_id},
                     message_key: "",
                     message_id: this.seq.toString()
                 }
@@ -151,7 +152,7 @@ class Client extends EventEmitter {
 
                 const action = {
                     cmd,
-                    data: {...params, uid, game_id},
+                    data: {...params, game_id},
                     message_key: "",
                     message_id: this.seq.toString()
                 }

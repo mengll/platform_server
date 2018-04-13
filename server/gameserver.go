@@ -101,9 +101,6 @@ func init() {
 //检查当前的数据格式
 
 func Gs(ws *websocket.Conn, req_data *ReqDat) error {
-
-	uid := strconv.Itoa(IntFromFloat64(req_data.Data["uid"].(float64)))
-
 	Res := ResponeDat{}
 	Res.MessageId = req_data.MessageId
 
@@ -140,8 +137,14 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		accessToken := req_data.Data["access_token"].(string)
 		profile, err := auth.Profile(accessToken)
 		if err != nil {
+			Res.ErrorCode = FAILED_BACK
+			Res.Msg = err.Error()
+			ws.WriteJSON(Res)
 			return err
 		}
+
+		// uid := strconv.Itoa(req_data.Data["uid"].(int) )
+		uid := strconv.Itoa(profile.UID)
 
 		udat := new(WSDat)
 		udat.Uid = strconv.Itoa(profile.UID)
@@ -199,6 +202,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//创建房间
 	case CREATE_ROOM:
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+
 		game_id := req_data.Data["game_id"].(string)
 		user_limit := req_data.Data["UserLimit"].(int)
 		new_room := createRoom(game_id)
@@ -218,6 +223,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//加入房间
 	case JOIN_ROOM:
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+
 		game_id := req_data.Data["game_id"].(string)
 
 		if _, ok := req_data.Data["room"]; !ok {
@@ -261,6 +268,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//匹配玩家
 	case SEARCH_MATCH:
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+
 		game_id := req_data.Data["game_id"].(string)
 		//ad:= fmt.Sprintf("%d",req_data.Data["user_limit"].(float64)) //游戏匹配的玩家的数量
 		room_limit := IntFromFloat64(req_data.Data["user_limit"].(float64))
@@ -329,6 +338,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		println("end")
 		//取消匹配
 	case JOIN_CANCEL:
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+
 		game_id := req_data.Data["game_id"].(string)
 		PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
 		Res.ErrorCode = SUCESS_BACK
@@ -338,6 +349,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//退出玩家
 	case LOGOUT:
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+
 		game_id := req_data.Data["game_id"].(string)
 		PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
 		PfRedis.delSet(fmt.Sprintf(CLIENT_LOGIN_KYE, game_id), uid) //从登陆的数据表中删除
@@ -367,6 +380,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//退出房间
 	case OUT_ROOM:
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
 
 		if _, ok := req_data.Data["room"]; !ok {
 			Res.ErrorCode = FAILED_BACK
@@ -403,6 +417,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//断线重连
 	case RECONNECT:
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+
 		game_id := req_data.Data["game_id"].(string)
 		if _, ok := req_data.Data["room"]; !ok {
 			Res.ErrorCode = FAILED_BACK
@@ -431,6 +447,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 	//心跳
 	case GAME_HEART:
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+
 		print("game_heart")
 		Res.ErrorCode = SUCESS_BACK
 		Res.Msg = ONLINE

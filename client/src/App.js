@@ -19,6 +19,26 @@ import client from './client';
 
 import {  AuthContext } from './context';
 
+class Heartbeat extends Component {
+  timer = null;
+  
+  static INTERVAL = 1000;
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      client.push('game_heart', {uid: this.props.profile.uid});
+    }, Heartbeat.INTERVAL)
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.timer);
+  }
+
+  render() {
+    return null;
+  }
+}
+
 class App extends Component {
 
   updateProfile = profile => {
@@ -28,6 +48,7 @@ class App extends Component {
 
   state = {
     auth: {
+      accessToken: sessionStorage.getItem('accessToken'),
       profile: null,
       update: this.updateProfile
     }
@@ -36,15 +57,23 @@ class App extends Component {
   render() {
     return (
       <AuthContext.Provider value={this.state.auth}>
-      <Router>
-          <React.Fragment>
-            <Route path="/authorize/:accessToken?" component={Authorize}/>
-            <AuthRoute exact path="/" component={Game}/>
-            <AuthRoute exact path="/matching" component={Matching}/>
-            <AuthRoute exact path="/ending" component={Ending}/>
-            <AuthRoute exact path="/play" component={Play}/>
-          </React.Fragment>
-      </Router>
+        <Router>
+            <React.Fragment>
+              <Route path="/authorize/:accessToken?" component={Authorize}/>
+              <AuthRoute exact path="/" component={Game}/>
+              <AuthRoute exact path="/matching" component={Matching}/>
+              <AuthRoute exact path="/ending" component={Ending}/>
+              <AuthRoute exact path="/play" component={Play}/>
+            </React.Fragment>
+        </Router>
+
+        <AuthContext.Consumer>
+          {
+            ({profile}) => {
+              return profile && <Heartbeat profile={profile}/>
+            }
+          }
+        </AuthContext.Consumer>
       </AuthContext.Provider>
     );
   }
