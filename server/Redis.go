@@ -100,14 +100,18 @@ func (this *GsRedisManage)Expire(k string ,t time.Duration)error{
 func (this *GsRedisManage)EXISTS(k string)(bool,error){
 
 	resut,err :=  this.RS.Exists(k).Result()
-	if err == nil{
-		if re,err := strconv.Atoi(strconv.FormatInt(resut,10)); err != nil{
-			if re > 0 {
-				return true,nil
-			}
-		}
+
+	if err != nil{
+		return false,err
 	}
-	return false,err
+
+	if resut > 0 {
+		println("jjkknn")
+		return true,nil
+	}
+
+
+	return true,nil
 }
 
 //生成当前redis 对象

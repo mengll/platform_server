@@ -95,7 +95,7 @@ var (
 
 func init() {
 	PfRedis.Connect()
-	//go ClearnDisconnect()
+	go ClearnDisconnect()
 }
 
 //检查当前的数据格式
@@ -297,7 +297,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 				select {
 
 				case <-ctx.Done():
-					PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid) //引出当前用户
+					//PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid) //引出当前用户
 					Res.ErrorCode = FAILED_BACK
 					Res.Msg = TIME_OUT
 					ws.WriteJSON(Res)
@@ -451,8 +451,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 	//心跳
 	case GAME_HEART:
 		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
-
-		print("game_heart")
 		Res.ErrorCode = SUCESS_BACK
 		Res.Msg = ONLINE
 		online_key := fmt.Sprintf(ONLINE_KEY, uid)
@@ -473,7 +471,7 @@ func AuthCallback(c echo.Context) error {
 
 //发送广播
 func BroadCast(c_room string, game_id string, data interface{}) error {
-
+	fmt.Println("调用广播")
 	c_data, err := PfRedis.SMembers(c_room)
 	if err != nil {
 		return err
@@ -485,7 +483,7 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 
 		//给房间内的所用玩家同步信息
 		for _, v := range c_data {
-
+			fmt.Println("--bt->",v)
 			if con, oo := PlatFormUser[game_id][v]; oo {
 
 				udat := PfRedis.GetKey(fmt.Sprintf(USER_GAME_KEY, oo))
@@ -545,17 +543,18 @@ func ClearnDisconnect() {
 			fmt.Println("clear user")
 			for game_id, v := range PlatFormUser {
 				for uid, _ := range v {
-
+					fmt.Println(fmt.Sprintf(ONLINE_KEY, uid))
 					is_exists, err := PfRedis.EXISTS(fmt.Sprintf(ONLINE_KEY, uid))
 					if err != nil {
 						fmt.Println(err)
 						continue
 					}
+					println("is_usert",is_exists)
 					//不存在
 					if is_exists == false {
 						PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
 						PfRedis.delSet(fmt.Sprintf(CLIENT_LOGIN_KYE, game_id), uid) //从登陆的数据表中删除
-						delete(PlatFormUser[game_id], uid)                          //移除ws对象
+						delete(PlatFormUser[game_id], uid) //移除ws对象                    															//移除ws对象
 					}
 
 				}
