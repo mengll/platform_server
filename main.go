@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"platform_server/server"
-	"platform_server/server/auth"
 
 	"github.com/gorilla/sessions"
 	"github.com/gorilla/websocket"
@@ -52,7 +51,7 @@ func main() {
 
 	e.GET("/gameserver", gameserver)
 
-	auth.Route(e)
+	e.GET("/auth/callback", server.AuthCallback)
 
 	e.Logger.Fatal(e.Start(":1323"))
 }

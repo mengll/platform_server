@@ -3,6 +3,19 @@ import styled from 'styled-components';
 
 import client from '../../client';
 
+import { Redirect } from 'react-router-dom';
+
+import { AuthContext } from '../../context';
+
+const Gender = styled.div`
+  display: inline-block;
+  vertical-align: middle;
+  width: 3vw;
+  height: 3vw;
+  background-image: ${ ({type}) => `url(${ require(`./gender_${type}.png`) })` };
+  background-size: cover;
+`;
+
 const Wrapper = styled.div`
   box-sizing: border-box;
   min-height: 100vh;
@@ -107,25 +120,6 @@ const NameText = styled.div`
   vertical-align: middle;
 `
 
-
-const MaleGender = styled.div`
-  display: inline-block;
-  vertical-align: middle;
-  width: 3vw;
-  height: 3vw;
-  background-image: url(${ require('./gender_male.png') });
-  background-size: cover;
-`;
-
-const FemaleGender = styled.div`
-  display: inline-block;
-  vertical-align: middle;
-  width: 3vw;
-  height: 3vw;
-  background-image: url(${ require('./gender_female.png') });
-  background-size: cover;
-`;
-
 const Record = styled.div`
   position: absolute;
   top: 51vw;
@@ -181,27 +175,39 @@ const Close = styled.div`
   background-size: cover;
 `
 
+
+class Runner extends Component {
+
+  componentDidMount() {
+    const {children: runner, ...rest} = this.props;
+    // console.log(this.props);
+    if (runner) {
+      runner(rest);
+    }
+  }
+
+  render() {
+    return null;
+  }
+}
+
+
 export default class Matching extends Component {
   state = {
     matching: true,
     seconds: 0,
+    params: null,
   }
 
   timer = null;
 
   componentDidMount() {
-    client.push('search_match', {user_limit: 2, uid: "100", game_id :"1990"})
-    client.once('notify.start', (params) => {
-      console.log('start', params);
-    })
-
     const start = new Date();
-
     this.timer = setInterval(() => {
       this.setState({
         seconds: Math.floor((new Date() - start) / 1000 )
       })
-    }, 500)
+    }, 1000)
   }
 
   componentWillUnmount() {
@@ -209,17 +215,37 @@ export default class Matching extends Component {
   }
 
   render() {
-    return (
-      <Wrapper>
-        <Title>正在匹配</Title>
-        <Time>已等待{this.state.seconds}s</Time>
-        <GameName>跳一跳</GameName>
-        <Profile>
-          <Avatar/>
-          <UserName><NameText>liuping</NameText> <MaleGender/></UserName>
-        </Profile>
-        <Close/>
-      </Wrapper>
-    );
+    if (this.state.matching) {
+      return (
+        <AuthContext.Consumer>
+        {
+          ({profile}) => <Wrapper>
+            <Title>正在匹配</Title>
+            <Time>已等待{this.state.seconds}s</Time>
+            <GameName>跳一跳</GameName>
+            <Profile>
+              <Avatar/>
+              <UserName><NameText>{profile.username}</NameText> <Gender type="male"/></UserName>
+            </Profile>
+            <Close/>
+            <Runner>{
+                () => {
+                  client.push('search_match', {user_limit: 2, uid: profile.uid})
+                  client.once('notify.start', (params) => {
+                    this.setState({
+                      matching: false,
+                      params
+                    })
+                  })
+                }
+            }</Runner>
+          </Wrapper>
+        }
+        </AuthContext.Consumer>
+      );
+    } else {
+      return <Redirect to={{ pathname: '/play', state: this.state.params }}/>
+    }
+
   }
 }

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 
 import styled from 'styled-components';
 
+import { AuthContext } from '../../context';
+
 const Wrapper = styled.div`
   box-sizing: border-box;
   min-height: 100vh;
@@ -97,6 +99,9 @@ const Avatar = styled.div`
   border-radius: 10.5vw;
 
   background-color: #3586FF;
+
+  background-image: url(${props => props.image});
+  background-size: cover;
 `
 
 const Username = styled.div`
@@ -192,29 +197,34 @@ const InviteButton = styled.div`
 
 export default class Game extends Component {
   render() {
+    console.log('game');
     return (
-      <Wrapper>
-        <Header>
-          <Icon/>
-          <Title>跳一跳</Title>
-          <Description>65238对在玩</Description>
-          <RuleLink>玩法规则 &gt;</RuleLink>
-        </Header>
-        <Profile>
-          <Surround/>
-          <Avatar/>
-          <Username>liuping</Username>
-          <Record>总局数: 1 胜率: 100%</Record>
-        </Profile>
-        <Ranking>
-          <Text>查看排行榜</Text>
-          <RankingLink>胜点：110 &gt;</RankingLink>
-        </Ranking>
-        <Bottom>
-          <MatchButton to={'/matching'}>开始匹配</MatchButton>
-          <InviteButton>找微信QQ好友一起玩</InviteButton>
-        </Bottom>
-      </Wrapper>
+      <AuthContext.Consumer>
+      {
+        ({profile}) => <Wrapper>
+          <Header>
+            <Icon/>
+            <Title>跳一跳</Title>
+            <Description>65238对在玩</Description>
+            <RuleLink>玩法规则 &gt;</RuleLink>
+          </Header>
+          <Profile>
+            <Surround/>
+            <Avatar image={profile.avatar}/>
+            <Username>{profile.username}</Username>
+            <Record>总局数: 1 胜率: 100%</Record>
+          </Profile>
+          <Ranking>
+            <Text>查看排行榜</Text>
+            <RankingLink>胜点：110 &gt;</RankingLink>
+          </Ranking>
+          <Bottom>
+            <MatchButton to={'/matching'}>开始匹配</MatchButton>
+            <InviteButton>找微信QQ好友一起玩</InviteButton>
+          </Bottom>
+        </Wrapper>
+      }
+      </AuthContext.Consumer>
     );
   }
 }
