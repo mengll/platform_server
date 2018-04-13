@@ -129,6 +129,8 @@ func Gs(ws *websocket.Conn,req_data *ReqDat)  error{
 		udat.NickName = req_data.Data["nick_name"].(string)
 		udat.Gender = req_data.Data["gender"].(string)
 
+		online_key := fmt.Sprintf(ONLINE_KEY,uid)
+		PfRedis.Expire(online_key,time.Second * 3)
 		pg, pgerr := models.SaveLoginLog()
 
 		if pgerr == nil {
