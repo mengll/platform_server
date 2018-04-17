@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo-contrib/session"
 
 	"github.com/labstack/echo/middleware"
+	"fmt"
 )
 
 var (
@@ -26,6 +27,9 @@ func gameserver(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("every time run here") //每次新的用户运行这个
+
 GOB:
 	for {
 		dat := &server.ReqDat{}
@@ -42,12 +46,13 @@ GOB:
 }
 
 func main() {
+
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(session.Middleware(sessions.NewCookieStore([]byte("secret"))))
 
-	e.Static("/", "./public") //创建服务
+	e.Static("/", "./client/public/") //创建服务
 
 	e.GET("/gameserver", gameserver)
 
