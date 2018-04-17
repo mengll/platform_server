@@ -112,7 +112,8 @@ class WeixinShare extends Component {
 }
 
 const BrowserShare = (props) => {
-    Toast.info('请使用浏览器自带分享功能');
+    console.log(props);
+    Toast.info('浏览器无法分享');
 }
 
 const AnfengGameShare = (props) => {
@@ -129,11 +130,15 @@ const AnfengGameShare = (props) => {
 
 class Share extends Component {
     
-    share() {
+    share(props) {
+      return this.shareFunc()(props);  
+    }
+
+    shareFunc() {
         switch (true) {
-            case env.ANFENG_GAME: return AnfengGameShare();
-            case env.WEIXIN: return WeixinShare();
-            default: return BrowserShare();
+            case env.ANFENG_GAME: return AnfengGameShare;
+            case env.WEIXIN: return WeixinShare;
+            default: return BrowserShare;
         }
     }
 
