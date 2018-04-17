@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
+
 )
 
 type (
@@ -91,6 +92,8 @@ var (
 		BaseURL:  "http://192.168.1.53:82",
 		ClientID: "101",
 	}
+	//数据写入通道
+   WriteChannel chan map[*websocket.Conn]interface{} = make(chan map[*websocket.Conn]interface{})
 )
 
 func init() {
@@ -112,8 +115,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		if err != nil {
 			fmt.Println("event log save error", err.Error())
 		}
-	} else {
-		fmt.Println("event log error", err.Error())
 	}
 
 	if pgevent != nil {
@@ -259,7 +260,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			if num == now_room_num {
 				println("加入完成")
 				//start game
-				BroadCast(room, game_id, nil) //广播通知当前的玩家，
+				BroadCast(room, game_id, "") //广播通知当前的玩家，
 			}
 
 		} else {
@@ -451,10 +452,11 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 	//心跳
 	case GAME_HEART:
 		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
-		Res.ErrorCode = SUCESS_BACK
-		Res.Msg = ONLINE
 		online_key := fmt.Sprintf(ONLINE_KEY, uid)
 		PfRedis.Expire(online_key, time.Second*3)
+		Res.ErrorCode = SUCESS_BACK
+		Res.Msg = ONLINE
+
 		ws.WriteJSON(Res)
 	} //end switch
 
@@ -503,11 +505,29 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 					Res.Msg = ROOM_MESSAGE
 				}
 
-				err := con.WriteJSON(Res) //判断用户存在，则发送响应数据
+				is_exists, err := PfRedis.EXISTS(fmt.Sprintf(ONLINE_KEY, v))
 				if err != nil {
-					println("发送用户信息失败:")
-					return err
+					fmt.Println(err)
+					continue
 				}
+				//todo 并发写入问题
+				if is_exists{
+					fmt.Println(Res)
+
+					mp := make(map[*websocket.Conn]interface{})
+					mp[con] = Res
+					WriteChannel <- mp
+					//err := con.WriteJSON(Res) //判断用户存在，则发送响应数据
+					//if err != nil {
+					//	println("发送用户信息失败:")
+					//	return err
+					//}
+
+					online_key := fmt.Sprintf(ONLINE_KEY, v)
+					PfRedis.Expire(online_key, time.Second*3)
+
+				}
+
 			}
 		}
 	} //end for
@@ -536,7 +556,7 @@ func MaptoJson(data map[string]interface{}) string {
 
 //清除断线的用户信息
 func ClearnDisconnect() {
-	interval_clearn := time.NewTicker(time.Second * 30)
+	interval_clearn := time.NewTicker(time.Second * 60)
 	for {
 		select {
 		case <-interval_clearn.C:
@@ -545,6 +565,7 @@ func ClearnDisconnect() {
 				for uid, _ := range v {
 					fmt.Println(fmt.Sprintf(ONLINE_KEY, uid))
 					is_exists, err := PfRedis.EXISTS(fmt.Sprintf(ONLINE_KEY, uid))
+
 					if err != nil {
 						fmt.Println(err)
 						continue
@@ -562,3 +583,4 @@ func ClearnDisconnect() {
 		}
 	}
 }
+//https://blog.csdn.net/wangshubo1989/article/details/78250790
