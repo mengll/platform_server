@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
+
 )
 
 type (
@@ -91,6 +92,8 @@ var (
 		BaseURL:  "http://192.168.1.53:82",
 		ClientID: "101",
 	}
+	//数据写入通道
+   WriteChannel chan map[*websocket.Conn]interface{} = make(chan map[*websocket.Conn]interface{})
 )
 
 func init() {
@@ -112,8 +115,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		if err != nil {
 			fmt.Println("event log save error", err.Error())
 		}
-	} else {
-		fmt.Println("event log error", err.Error())
 	}
 
 	if pgevent != nil {
@@ -259,7 +260,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			if num == now_room_num {
 				println("加入完成")
 				//start game
-				BroadCast(room, game_id, nil) //广播通知当前的玩家，
+				BroadCast(room, game_id, "") //广播通知当前的玩家，
 			}
 
 		} else {
@@ -512,11 +513,15 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 				//todo 并发写入问题
 				if is_exists{
 					fmt.Println(Res)
-					err := con.WriteJSON(Res) //判断用户存在，则发送响应数据
-					if err != nil {
-						println("发送用户信息失败:")
-						return err
-					}
+
+					mp := make(map[*websocket.Conn]interface{})
+					mp[con] = Res
+					WriteChannel <- mp
+					//err := con.WriteJSON(Res) //判断用户存在，则发送响应数据
+					//if err != nil {
+					//	println("发送用户信息失败:")
+					//	return err
+					//}
 
 					online_key := fmt.Sprintf(ONLINE_KEY, v)
 					PfRedis.Expire(online_key, time.Second*3)
@@ -578,3 +583,4 @@ func ClearnDisconnect() {
 		}
 	}
 }
+//https://blog.csdn.net/wangshubo1989/article/details/78250790

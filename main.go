@@ -22,6 +22,24 @@ var (
 	}
 )
 
+
+
+func WC(){
+
+	for{
+		select {
+		  case wsdat := <- server.WriteChannel:
+			  for ws,dat := range wsdat{
+				  ws.WriteJSON(dat)
+			  }
+		default:
+
+		}
+
+	}
+}
+
+
 func gameserver(c echo.Context) error {
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
@@ -57,6 +75,8 @@ func main() {
 	e.GET("/gameserver", gameserver)
 
 	e.GET("/auth/callback", server.AuthCallback)
+
+	go WC()
 
 	e.Logger.Fatal(e.Start(":1323"))
 }
