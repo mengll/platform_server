@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 
 import client from  '../../client';
 
-export default class Play extends Component {
+class Play extends Component {
     state= {
         score: 0,
         other: 0,

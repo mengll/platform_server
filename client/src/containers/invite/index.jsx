@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { Redirect } from 'react-router-dom';
 
 import client from '../../client';
 import { AuthContext } from '../../context';
@@ -7,13 +8,12 @@ export default class Invite extends Component {
     render() {
         const { roomId } = this.props.match.params;
 
-        return <AuthContext.Consumer>
-            {
-                ({profile}) => {
-                    client.call('join_room', {room: roomId, uid: profile.uid});
-                    return null
-                }
+        return <Redirect to={{
+            pathname: '/matching',
+            state: {
+                type: 'join',
+                room: roomId,
             }
-        </AuthContext.Consumer>
+        }} />
     }
 }
