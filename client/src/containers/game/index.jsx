@@ -5,6 +5,9 @@ import styled from 'styled-components';
 
 import { AuthContext } from '../../context';
 
+import share from '../../components/share/';
+
+
 const Wrapper = styled.div`
   box-sizing: border-box;
   min-height: 100vh;
@@ -220,7 +223,9 @@ export default class Game extends Component {
           </Ranking>
           <Bottom>
             <MatchButton to={'/matching'}>开始匹配</MatchButton>
-            <InviteButton>找微信QQ好友一起玩</InviteButton>
+            <InviteButton onClick={() => {
+              share.share();
+            }} >找微信QQ好友一起玩</InviteButton>
           </Bottom>
         </Wrapper>
       }
