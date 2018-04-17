@@ -155,8 +155,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		udat.Gender = strconv.Itoa(profile.Gender)
 		udat.Brithday = profile.Birthday
 
-		online_key := fmt.Sprintf(ONLINE_KEY,uid)
-		PfRedis.Expire(online_key,time.Second * 3000)
+		online_key := fmt.Sprintf(ONLINE_KEY, uid)
+		PfRedis.Expire(online_key, time.Second*3000)
 
 		pg, pgerr := models.SaveLoginLog()
 
@@ -209,7 +209,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
 
 		game_id := req_data.Data["game_id"].(string)
-		user_limit := req_data.Data["UserLimit"].(int)
+		user_limit := int(req_data.Data["user_limit"].(float64))
 		new_room := createRoom(game_id)
 		limit_key := fmt.Sprintf("%s_limit", new_room)
 		println("limit_key =>", limit_key, user_limit)
@@ -250,7 +250,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		println("user_join-->", num, room_num, room)
 
-		if num > room_num {
+		if num >= room_num {
 			//加入成功
 			addSet(room, uid)
 			Res.ErrorCode = SUCESS_BACK
@@ -485,7 +485,7 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 
 		//给房间内的所用玩家同步信息
 		for _, v := range c_data {
-			fmt.Println("--bt->",v)
+			fmt.Println("--bt->", v)
 			if con, oo := PlatFormUser[game_id][v]; oo {
 
 				udat := PfRedis.GetKey(fmt.Sprintf(USER_GAME_KEY, oo))
@@ -570,12 +570,12 @@ func ClearnDisconnect() {
 						fmt.Println(err)
 						continue
 					}
-					println("is_usert",is_exists)
+					println("is_usert", is_exists)
 					//不存在
 					if is_exists == false {
 						PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
 						PfRedis.delSet(fmt.Sprintf(CLIENT_LOGIN_KYE, game_id), uid) //从登陆的数据表中删除
-						delete(PlatFormUser[game_id], uid) //移除ws对象                    															//移除ws对象
+						delete(PlatFormUser[game_id], uid)                          //移除ws对象                    															//移除ws对象
 					}
 
 				}

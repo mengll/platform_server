@@ -13,6 +13,8 @@ import Matching from './containers/matching/';
 import Ending from './containers/ending/';
 import Play from './containers/play/';
 import Authorize from './containers/authorize/';
+import Invite from './containers/invite/';
+
 
 import client from './client';
 
@@ -64,6 +66,7 @@ class App extends Component {
               <AuthRoute exact path="/matching" component={Matching}/>
               <AuthRoute exact path="/ending" component={Ending}/>
               <AuthRoute exact path="/play" component={Play}/>
+              <AuthRoute path="/invite/:roomId" component={Invite}/>
             </React.Fragment>
         </Router>
 
@@ -90,7 +93,10 @@ class AuthRoute extends Component {
             (auth) => {
               console.log(auth);
               if (auth.profile === null) {
-                return <Redirect to="/authorize"/>
+                return <Redirect to={{
+                  pathname: "/authorize",
+                  state: { from: window.location.href }
+                }}/>
               } else {
                 return React.createElement(component, props)
               }
