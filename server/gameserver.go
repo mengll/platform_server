@@ -120,6 +120,10 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		pgevent.Close()
 	}
 
+	uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+	online_key := fmt.Sprintf(ONLINE_KEY, uid)
+	PfRedis.Expire(online_key, time.Second*3)
+
 	switch req_data.Cmd {
 	case AUTHORIZE:
 		authorizeURL := auth.AuthorizeURL("http://localhost:1323/auth/callback", "STATE")
@@ -450,11 +454,10 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 	//心跳
 	case GAME_HEART:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+
 		Res.ErrorCode = SUCESS_BACK
 		Res.Msg = ONLINE
-		online_key := fmt.Sprintf(ONLINE_KEY, uid)
-		PfRedis.Expire(online_key, time.Second*3)
+
 		ws.WriteJSON(Res)
 	} //end switch
 
@@ -503,11 +506,20 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 					Res.Msg = ROOM_MESSAGE
 				}
 
-				err := con.WriteJSON(Res) //判断用户存在，则发送响应数据
+				is_exists, err := PfRedis.EXISTS(fmt.Sprintf(ONLINE_KEY, v))
 				if err != nil {
-					println("发送用户信息失败:")
-					return err
+					fmt.Println(err)
+					continue
 				}
+
+				if is_exists{
+					err := con.WriteJSON(Res) //判断用户存在，则发送响应数据
+					if err != nil {
+						println("发送用户信息失败:")
+						return err
+					}
+				}
+
 			}
 		}
 	} //end for
@@ -536,7 +548,7 @@ func MaptoJson(data map[string]interface{}) string {
 
 //清除断线的用户信息
 func ClearnDisconnect() {
-	interval_clearn := time.NewTicker(time.Second * 30)
+	interval_clearn := time.NewTicker(time.Second * 60)
 	for {
 		select {
 		case <-interval_clearn.C:
