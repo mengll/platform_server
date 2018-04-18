@@ -155,7 +155,7 @@ export default class Matching extends Component {
   render() {
     return (
       <Wrapper>
-        <TopBadge type="success" text="胜　利"/>
+        <TopBadge type="win" text="胜　利"/>
         <Profile>
             <Content>15 胜点</Content>
             <PlayerBox>
