@@ -16,6 +16,7 @@ import (
 
 	"strings"
 	"platform_server/libs/db"
+
 )
 
 type (
@@ -56,6 +57,14 @@ type (
 	WsManager interface {
 		Login() error
 	}
+
+	Gmresult struct {
+		Uid int
+		Score int
+		GameId int
+		MessageID string
+	}
+
 )
 
 //clients_connect
@@ -83,6 +92,7 @@ const (
 	TIME_OUT       = "af15"
 	DISCONNECT     = "af16"
 	ONLINE         = "af17"
+	USER_MESSAGE   = "af18"
 
 	ONLINE_KEY = "ONE_LINE:%s"
 )
@@ -188,6 +198,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		//保存用户登录信息
 		PfRedis.addSet(login_key, uid)
 
+		fmt.Println(udat)
 		//生成用户信息json串
 		b, err := json.Marshal(udat) //格式化当前的数据信息
 		if err != nil {
@@ -468,10 +479,11 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		user_limit := getSetNum(room)
 		result_num := getSetNum(res_key)
 		data  := req_data.Data
+		fmt.Println(req_data.Data)
 		uid   := strconv.Itoa(int(req_data.Data["uid"].(float64)))
-		score := strconv.Itoa(int(req_data.Data["score"].(float64)))
+		score := strconv.Itoa(int(req_data.Data["value"].(float64)))
 		text  := req_data.Data["text"].(string)
-		extra := req_data.Data["extra"].(string)
+		extra := req_data.Data["extra"].(map[string]interface{})
 		println(data)
 		pg,err := models.SaveResult()
 		if err != nil{
@@ -479,7 +491,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		}
 		game_id := req_data.Data["game_id"].(string)
 		//game_id , uid , score , text ,extra ,room ,ts,message_id
-		_,pg_err := pg.Exec(game_id,uid,score,text,extra,room,now_time,Res.MessageId)
+		_,pg_err := pg.Exec(game_id,uid,score,text,MaptoJson(extra),room,now_time,Res.MessageId)
 
 		if pg_err != nil{
 			pg.Close()
@@ -491,23 +503,92 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		}
 
 		if user_limit > result_num {
-			addSet(res_key,Res.MessageId)
+			addSet(res_key,"'"+Res.MessageId+"'")
 			now_res := getSetNum(res_key)
 			if now_res == user_limit {
 				//结果数据处理分发
 				message_id ,r_err := PfRedis.SMembers(res_key)
 				if r_err == nil{
 					mids := strings.Join(message_id,",")
-					rows,err :=  models.Pg.(*db.Pg).Db.Query("select uid ,score,game_id from gp_game_result where message_id in("+mids+") order score desc")
+					fmt.Println("select uid ,score ,game_id,message_id from gp_game_result where message_id in("+mids+") order by score desc ")
+					rows,err :=  models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where message_id in("+mids+") order by score desc ")
 					if err != nil{
 						fmt.Println(err.Error())
 					}
 
+					scores := []Gmresult{}
 					for rows.Next(){
-
+						res_dat := Gmresult{}
+						uid     := 0
+						game_id := 0
+						score   := 0
+						message_id := ""
+						rows.Scan(&uid,&score,&game_id,&message_id)
+						res_dat.MessageID = message_id
+						res_dat.Uid = uid
+						res_dat.GameId = game_id
+						res_dat.Score = score
+						scores = append(scores,res_dat)
 					}
+
+					//todo 现在处理的2人数据后期添加多人数据比较需要优化
+					if (scores[0].Score - scores[1].Score) > 0 {
+						back_dat := make(map[string]string)
+						back_dat["result"] = "win"
+						Res.Data = back_dat
+						Res.MessageId = scores[0].MessageID
+						fmt.Println("12",strconv.Itoa(scores[0].GameId),strconv.Itoa(scores[0].Uid))
+						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
+						mp := make(map[*websocket.Conn]interface{})
+						mp[con] = Res
+						WriteChannel <- mp
+
+						back_dat["result"] = "lose"
+						Res.Data = back_dat
+						Res.MessageId = scores[1].MessageID
+						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
+
+						mp[con] = Res
+						WriteChannel <- mp
+					}
+
+					if (scores[0].Score - scores[1].Score) == 0{
+						back_dat := make(map[string]string)
+						back_dat["result"] = "draw"
+						Res.Data = back_dat
+						Res.MessageId = scores[0].MessageID
+						fmt.Println(strconv.Itoa(scores[0].GameId),strconv.Itoa(scores[0].Uid))
+						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
+						mp := make(map[*websocket.Conn]interface{})
+						mp[con] = Res
+						WriteChannel <- mp
+
+						back_dat["result"] = "draw"
+						Res.Data = back_dat
+						Res.MessageId = scores[1].MessageID
+						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
+
+						mp[con] = Res
+						WriteChannel <- mp
+					}
+
 				}
 			}
+		}
+
+	//user message
+	case USER_MESSAGE:
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		game_id := req_data.Data["game_id"].(string)
+		data := req_data.Data
+		err := PlatFormUser[game_id][uid].WriteJSON(data)
+		if err != nil{
+			Res.ErrorCode = FAILED_BACK
+			Res.Msg = err.Error()
+			ws.WriteJSON(Res)
+		}else{
+			Res.ErrorCode = SUCESS_BACK
+			ws.WriteJSON(Res)
 		}
 
 	} //end switch
@@ -531,21 +612,21 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 		return err
 	}
 
-	room_message := []string{}
-
 	if _, ok := PlatFormUser[game_id]; ok {
-
 		//给房间内的所用玩家同步信息
 		for _, v := range c_data {
 			fmt.Println("--bt->",v)
 			if con, oo := PlatFormUser[game_id][v]; oo {
-
-				udat := PfRedis.GetKey(fmt.Sprintf(USER_GAME_KEY, oo))
 				Res := ResponeDat{}
 				Res.ErrorCode = SUCESS_BACK
-				room_message = append(room_message, udat)
+
 				switch data.(type) {
 				case string:
+					room_message := []string{}
+					for _, v := range c_data {
+						udat := PfRedis.GetKey(fmt.Sprintf(USER_GAME_KEY, v))
+						room_message = append(room_message, udat)
+					}
 					back_data := make(map[string]interface{})
 					back_data["uid"] = v
 					back_data["info"] = room_message
@@ -564,22 +645,12 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 				}
 				//todo 并发写入问题
 				if is_exists{
-					fmt.Println(Res)
-
 					mp := make(map[*websocket.Conn]interface{})
 					mp[con] = Res
 					WriteChannel <- mp
-					//err := con.WriteJSON(Res) //判断用户存在，则发送响应数据
-					//if err != nil {
-					//	println("发送用户信息失败:")
-					//	return err
-					//}
-
 					online_key := fmt.Sprintf(ONLINE_KEY, v)
 					PfRedis.Expire(online_key, time.Second*3)
-
 				}
-
 			}
 		}
 	} //end for
