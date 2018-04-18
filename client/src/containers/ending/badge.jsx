@@ -3,8 +3,8 @@ import React, { Component } from 'react';
 import styled, { css } from 'styled-components';
 
 const Colors = {
-    success: 'rgba(247,45,81,1)',
-    failure: 'white',
+    win: 'rgba(247,45,81,1)',
+    lose: 'white',
     draw: 'white',
 };
 
