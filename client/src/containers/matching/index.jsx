@@ -191,15 +191,12 @@ class Runner extends Component {
   }
 }
 
-
-export default class Matching extends Component {
-  state = {
-    matching: true,
-    seconds: 0,
-    params: null,
-  }
-
+class WatingTime extends Component {
   timer = null;
+  
+  state = {
+    seconds: 0
+  }
 
   componentDidMount() {
     const start = new Date();
@@ -215,31 +212,145 @@ export default class Matching extends Component {
   }
 
   render() {
+    return <Time>已等待{this.state.seconds}s</Time>;
+  }
+}
+
+class DefaultMatching extends Component {
+
+  componentDidMount() {
+    const { profile } = this.props;
+    client.push('search_match', {user_limit: 2, uid: profile.uid})
+  }
+
+  cancel = async () =>  {
+    const { profile } = this.props;
+    await client.call('join_cancel', {uid: profile.uid})
+    if(this.props.onCancel) {
+      this.props.onCancel();
+    }
+  }
+
+  render() {
+    const { profile } = this.props;
+
+    return <Wrapper>
+      <Title>正在匹配</Title>
+      <WatingTime/>
+      <GameName>跳一跳</GameName>
+      <Profile>
+        <Avatar/>
+        <UserName><NameText>{profile.username}</NameText> <Gender type="male"/></UserName>
+      </Profile>
+      <Close onClick={this.cancel} />
+    </Wrapper>;
+  }
+}
+
+class CreateMatching extends Component {
+
+  cancel = async () => {
+    const { profile, room } = this.props;
+    await client.call('out_room', {uid: profile.uid, room: room});
+    if(this.props.onCancel) {
+      this.props.onCancel();
+    }
+  }
+
+  render() {
+    const { profile } = this.props;
+
+    return <Wrapper>
+      <Title>正在匹配</Title>
+      <WatingTime/>
+      <GameName>跳一跳</GameName>
+      <Profile>
+        <Avatar/>
+        <UserName><NameText>{profile.username}</NameText> <Gender type="male"/></UserName>
+      </Profile>
+      <Close onClick={this.cancel} />
+    </Wrapper>;
+  }
+}
+
+class JoinMatching extends Component {
+
+  cancel = async () => {
+    const { profile, room } = this.props;
+    await client.call('out_room', {uid: profile.uid, room: room});
+    if(this.props.onCancel) {
+      this.props.onCancel();
+    }
+  }
+
+  componentDidMount() {
+    const { profile, room } = this.props;
+    client.push('join_room', {room: room, uid: profile.uid});
+  }
+
+
+  render() {
+    const { profile } = this.props;
+    
+    return <Wrapper>
+      <Title>正在匹配</Title>
+      <WatingTime/>
+      <GameName>跳一跳</GameName>
+      <Profile>
+        <Avatar/>
+        <UserName><NameText>{profile.username}</NameText> <Gender type="male"/></UserName>
+      </Profile>
+      <Close onClick={this.cancel}/>
+    </Wrapper>;
+  }
+}
+
+
+export default class Matching extends Component {
+  state = {
+    matching: true,
+    params: null,
+  }
+
+  handleCancel = () => {
+    this.props.history.push('/');
+  }
+
+  componentDidMount() {
+    client.once('notify.start', (params) => {
+      this.setState({
+        matching: false,
+        params
+      })
+    })
+  }
+
+  render() {
+    
+    //1. 自动匹配
+    //2. 创建房间
+    //3. 加入房间
+
+    const { type, room } = this.props.location.state || {};
+
     if (this.state.matching) {
       return (
         <AuthContext.Consumer>
         {
-          ({profile}) => <Wrapper>
-            <Title>正在匹配</Title>
-            <Time>已等待{this.state.seconds}s</Time>
-            <GameName>跳一跳</GameName>
-            <Profile>
-              <Avatar/>
-              <UserName><NameText>{profile.username}</NameText> <Gender type="male"/></UserName>
-            </Profile>
-            <Close/>
-            <Runner>{
-                () => {
-                  client.push('search_match', {user_limit: 2, uid: profile.uid})
-                  client.once('notify.start', (params) => {
-                    this.setState({
-                      matching: false,
-                      params
-                    })
-                  })
-                }
-            }</Runner>
-          </Wrapper>
+          ({profile}) => {
+            const props = {
+              profile,
+              room,
+              onCancel: this.handleCancel
+            }
+            if (type === 'create') {
+              return <CreateMatching {...props}/>
+            } else if (type === 'join') {
+              return <JoinMatching {...props}/>
+            } else {
+              return <DefaultMatching {...props}/>
+            }
+          }
         }
         </AuthContext.Consumer>
       );

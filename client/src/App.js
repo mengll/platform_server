@@ -12,6 +12,7 @@ import Game from './containers/game/';
 import Matching from './containers/matching/';
 import Ending from './containers/ending/';
 import Play from './containers/play/';
+import BottleFlipGame from './containers/game_bottle-flip/';
 import Authorize from './containers/authorize/';
 import Invite from './containers/invite/';
 
@@ -65,7 +66,7 @@ class App extends Component {
               <AuthRoute exact path="/" component={Game}/>
               <AuthRoute exact path="/matching" component={Matching}/>
               <AuthRoute exact path="/ending" component={Ending}/>
-              <AuthRoute exact path="/play" component={Play}/>
+              <AuthRoute exact path="/play" component={BottleFlipGame}/>
               <AuthRoute path="/invite/:roomId" component={Invite}/>
             </React.Fragment>
         </Router>
