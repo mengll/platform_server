@@ -25,6 +25,8 @@ class Authorize extends Component {
             
             if (success) {
                 this.props.auth.update(result);
+                const authorizeFrom = sessionStorage.getItem('authorizeFrom') || '/';
+                window.location.href = authorizeFrom;
             } else {
                 sessionStorage.removeItem('accessToken');
                 this.redirect();
@@ -36,7 +38,7 @@ class Authorize extends Component {
     }
 
     render() {
-        return this.props.auth.profile ? <Redirect to="/" /> : '登陆中';
+        return '登陆中';
     }
 }
 
@@ -49,6 +51,10 @@ export default class Wrapper extends Component {
     render() {
         console.log(this.props);
         const { accessToken = null} = this.props.match.params;
+        const { from = null } = this.props.location.state || {};
+        if (from) {
+            sessionStorage.setItem('authorizeFrom', from);
+        }
         return (
             <AuthContext.Consumer>
             {

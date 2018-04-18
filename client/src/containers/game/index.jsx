@@ -5,6 +5,9 @@ import styled from 'styled-components';
 
 import { AuthContext } from '../../context';
 
+import share from '../../components/share/';
+import client from '../../client';
+
 const Wrapper = styled.div`
   box-sizing: border-box;
   min-height: 100vh;
@@ -29,6 +32,8 @@ const Icon = styled.div`
   width: 17vw;
   height: 17vw;
   background: #EEEEEE;
+  background-image: url(${require('./bottle-flip.jpg')});
+  background-size: cover;
 `
 
 const Title = styled.div`
@@ -185,6 +190,7 @@ const MatchButton = styled(Link)`
 `
 
 const InviteButton = styled.div`
+  cursor: pointer;
   width: 75vw;
   height: 13vw;
   line-height: 13vw;
@@ -220,7 +226,26 @@ export default class Game extends Component {
           </Ranking>
           <Bottom>
             <MatchButton to={'/matching'}>开始匹配</MatchButton>
-            <InviteButton>找微信QQ好友一起玩</InviteButton>
+            <InviteButton onClick={async () => {
+              const {success, result, message} = await client.call('create_room',{uid: profile.uid, user_limit: 2});
+              if (success) {
+                share.share({
+                  image: window.location.origin + '/bottle-flip.jpg',
+                  url: window.location.origin + '/#/invite/' +  result.room_id,
+                  title: '这游戏真神，每天晚上不玩一下都睡不着觉！',
+                  content: '进来和我一决高下吧，来吧~'
+                });
+                this.props.history.push({
+                  pathname: '/matching',
+                  state: {
+                    type: 'create',
+                    room: result.room_id
+                  }
+                })
+              } else {
+                console.log(message);
+              }
+            }} >找微信QQ好友一起玩</InviteButton>
           </Bottom>
         </Wrapper>
       }
