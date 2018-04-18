@@ -59,7 +59,7 @@ GOB:
 
 		go server.Gs(ws, dat)
 	}
-	fmt.Println("123")
+
 	return nil
 }
 
