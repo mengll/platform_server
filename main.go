@@ -11,6 +11,7 @@ import (
 
 	"github.com/labstack/echo/middleware"
 	"fmt"
+	"time"
 )
 
 var (
@@ -21,8 +22,6 @@ var (
 		},
 	}
 )
-
-
 
 func WC(){
 
@@ -36,6 +35,7 @@ func WC(){
 
 		}
 
+		time.Sleep(time.Second)
 	}
 }
 

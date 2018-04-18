@@ -14,6 +14,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 
+	"strings"
+	"platform_server/libs/db"
 )
 
 type (
@@ -93,7 +95,7 @@ var (
 		ClientID: "101",
 	}
 	//数据写入通道
-   WriteChannel chan map[*websocket.Conn]interface{} = make(chan map[*websocket.Conn]interface{})
+	WriteChannel chan map[*websocket.Conn]interface{} = make(chan map[*websocket.Conn]interface{})
 )
 
 func init() {
@@ -449,7 +451,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			ws.WriteJSON(Res)
 		}
 
-	//心跳
+		//心跳
 	case GAME_HEART:
 		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
 		online_key := fmt.Sprintf(ONLINE_KEY, uid)
@@ -458,6 +460,56 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		Res.Msg = ONLINE
 
 		ws.WriteJSON(Res)
+
+		//游戏结果上报
+	case GAME_RESULT:
+		room := req_data.Data["room"].(string)
+		res_key := fmt.Sprintf(ROOM_RESULT_KEY, room)
+		user_limit := getSetNum(room)
+		result_num := getSetNum(res_key)
+		data  := req_data.Data
+		uid   := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		score := strconv.Itoa(int(req_data.Data["score"].(float64)))
+		text  := req_data.Data["text"].(string)
+		extra := req_data.Data["extra"].(string)
+		println(data)
+		pg,err := models.SaveResult()
+		if err != nil{
+			return err
+		}
+		game_id := req_data.Data["game_id"].(string)
+		//game_id , uid , score , text ,extra ,room ,ts,message_id
+		_,pg_err := pg.Exec(game_id,uid,score,text,extra,room,now_time,Res.MessageId)
+
+		if pg_err != nil{
+			pg.Close()
+			return nil
+		}
+
+		if pg != nil{
+			pg.Close()
+		}
+
+		if user_limit > result_num {
+			addSet(res_key,Res.MessageId)
+			now_res := getSetNum(res_key)
+			if now_res == user_limit {
+				//结果数据处理分发
+				message_id ,r_err := PfRedis.SMembers(res_key)
+				if r_err == nil{
+					mids := strings.Join(message_id,",")
+					rows,err :=  models.Pg.(*db.Pg).Db.Query("select uid ,score,game_id from gp_game_result where message_id in("+mids+") order score desc")
+					if err != nil{
+						fmt.Println(err.Error())
+					}
+
+					for rows.Next(){
+
+					}
+				}
+			}
+		}
+
 	} //end switch
 
 	return nil
@@ -583,4 +635,8 @@ func ClearnDisconnect() {
 		}
 	}
 }
-//https://blog.csdn.net/wangshubo1989/article/details/78250790
+
+func TimeOut(){
+	const t  = 10
+	time.Now().Add(t * time.Second ) //当前的超时的操作的过程使用这样的方式控制超时的操作
+}
