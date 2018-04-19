@@ -575,7 +575,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						mp := make(map[*websocket.Conn]interface{})
 						mp[con] = Res
 						//game_id , play_num , win_num , uid , win_score
-						save_score.Exec(game_id,1,1,strconv.Itoa(scores[0].Uid),15)
+						save_score.Exec(game_id,1,1 ,strconv.Itoa(scores[0].Uid),15)
 						WriteChannel <- mp
 
 						back_dat["result"] = "lose"
@@ -780,6 +780,7 @@ func UserGameResulta(c echo.Context) error{
 		Res.Data = userres
 	}else{
 		Res.ErrorCode = FAILED_BACK
+		Res.Data = userres
 		Res.Msg       = err.Error()
 	}
 
@@ -818,6 +819,7 @@ func GameResultList(c echo.Context) error{
 		Res.Data = userres_list
 	}else{
 		Res.ErrorCode = FAILED_BACK
+		Res.Data = userres_list
 		Res.Msg       = err.Error()
 	}
 	return c.JSON(http.StatusOK,Res)
