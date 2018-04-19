@@ -779,6 +779,10 @@ func UserGameResulta(c echo.Context) error{
 		Res.ErrorCode = SUCESS_BACK
 		Res.Data = userres
 	}else{
+		user_sql := "select nick_name,avatar from gp_users where uid ='%s'"
+		row := models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(user_sql,uid))
+		row.Scan(&userres.NickName,&userres.Avatar)
+
 		Res.ErrorCode = FAILED_BACK
 		Res.Data = userres
 		Res.Msg       = err.Error()
