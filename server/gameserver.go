@@ -14,6 +14,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 
+	"strings"
+	"platform_server/libs/db"
+
+	"net/http"
 )
 
 type (
@@ -54,6 +58,22 @@ type (
 	WsManager interface {
 		Login() error
 	}
+
+	Gmresult struct {
+		Uid int
+		Score int
+		GameId int
+		MessageID string
+	}
+
+	UserGameResult struct {
+		NickName  string `json:"nick_name"`
+		Avatar     string `json:"avatar"`
+		PlayNum    int     `json:"play_num"`
+		WinNum     int     `json:"win_num"`
+		WinPoint   int      `json:"win_point"`
+	}
+
 )
 
 //clients_connect
@@ -81,6 +101,7 @@ const (
 	TIME_OUT       = "af15"
 	DISCONNECT     = "af16"
 	ONLINE         = "af17"
+	USER_MESSAGE   = "af18"
 
 	ONLINE_KEY = "ONE_LINE:%s"
 )
@@ -93,7 +114,7 @@ var (
 		ClientID: "101",
 	}
 	//数据写入通道
-   WriteChannel chan map[*websocket.Conn]interface{} = make(chan map[*websocket.Conn]interface{})
+	WriteChannel chan map[*websocket.Conn]interface{} = make(chan map[*websocket.Conn]interface{})
 )
 
 func init() {
@@ -155,24 +176,42 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		udat.Gender = strconv.Itoa(profile.Gender)
 		udat.Brithday = profile.Birthday
 
-		online_key := fmt.Sprintf(ONLINE_KEY, uid)
-		PfRedis.Expire(online_key, time.Second*3000)
+		online_key := fmt.Sprintf(ONLINE_KEY,uid)
+		PfRedis.Expire(online_key,time.Second * 3000)
 
 		pg, pgerr := models.SaveLoginLog()
 
 		if pgerr == nil {
-			//`uid`,`game_id`,`ts`,`nick_name`,`gender`,`birth_day`,`ip`,`avatart`
-			res, err := pg.Exec(uid, game_id, now_time, udat.NickName, udat.Gender, udat.Brithday, ws.RemoteAddr().String(), udat.Avatar, req_data.MessageId)
+			//uid , game_id , ts , ip, message_id , data
+			_, err := pg.Exec(uid, game_id, now_time,ws.RemoteAddr().String(), req_data.MessageId,MaptoJson(req_data.Data))
+
 			if err != nil {
 				fmt.Println(err.Error())
 			}
-			fmt.Println(res.LastInsertId())
+
+			if pg != nil {
+				pg.Close()
+			}
 		} else {
 			fmt.Println(pgerr.Error())
 		}
 
-		if pg != nil {
-			pg.Close()
+		//保存玩家信息
+		saveUser,user_err := models.SaveUser()
+		if user_err == nil{
+			//uid , nick_name , avtar , births_day , gender  , ts , ip
+			_, err := saveUser.Exec(uid,udat.NickName,udat.Avatar,udat.Brithday,udat.Gender,now_time,ws.RemoteAddr().String())
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+
+			fmt.Println("保存用户信息")
+
+			if saveUser != nil{
+				saveUser.Close()
+			}
+		}else{
+			fmt.Println(user_err.Error())
 		}
 
 		if _, ok := PlatFormUser[game_id]; !ok {
@@ -186,6 +225,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		//保存用户登录信息
 		PfRedis.addSet(login_key, uid)
 
+		fmt.Println(udat)
 		//生成用户信息json串
 		b, err := json.Marshal(udat) //格式化当前的数据信息
 		if err != nil {
@@ -209,7 +249,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
 
 		game_id := req_data.Data["game_id"].(string)
-		user_limit := int(req_data.Data["user_limit"].(float64))
+		user_limit := req_data.Data["UserLimit"].(int)
 		new_room := createRoom(game_id)
 		limit_key := fmt.Sprintf("%s_limit", new_room)
 		println("limit_key =>", limit_key, user_limit)
@@ -250,7 +290,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		println("user_join-->", num, room_num, room)
 
-		if num >= room_num {
+		if num > room_num {
 			//加入成功
 			addSet(room, uid)
 			Res.ErrorCode = SUCESS_BACK
@@ -449,7 +489,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			ws.WriteJSON(Res)
 		}
 
-	//心跳
+		//心跳
 	case GAME_HEART:
 		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
 		online_key := fmt.Sprintf(ONLINE_KEY, uid)
@@ -458,6 +498,131 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		Res.Msg = ONLINE
 
 		ws.WriteJSON(Res)
+
+		//游戏结果上报
+	case GAME_RESULT:
+		room := req_data.Data["room"].(string)
+		res_key := fmt.Sprintf(ROOM_RESULT_KEY, room)
+		user_limit := getSetNum(room)
+		result_num := getSetNum(res_key)
+		data  := req_data.Data
+		fmt.Println(req_data.Data)
+		uid   := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		score := strconv.Itoa(int(req_data.Data["value"].(float64)))
+		text  := req_data.Data["text"].(string)
+		extra := req_data.Data["extra"].(map[string]interface{})
+		println(data)
+		pg,err := models.SaveResult()
+		if err != nil{
+			return err
+		}
+		game_id := req_data.Data["game_id"].(string)
+		//game_id , uid , score , text ,extra ,room ,ts,message_id
+		_,pg_err := pg.Exec(game_id,uid,score,text,MaptoJson(extra),room,now_time,Res.MessageId)
+
+		if pg_err != nil{
+			pg.Close()
+			return nil
+		}
+
+		if pg != nil{
+			pg.Close()
+		}
+
+		if user_limit > result_num {
+			addSet(res_key,"'"+Res.MessageId+"'")
+			now_res := getSetNum(res_key)
+			if now_res == user_limit {
+				//结果数据处理分发
+				message_id ,r_err := PfRedis.SMembers(res_key)
+				if r_err == nil{
+					mids := strings.Join(message_id,",")
+					fmt.Println("select uid ,score ,game_id,message_id from gp_game_result where message_id in("+mids+") order by score desc ")
+					rows,err :=  models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where message_id in("+mids+") order by score desc ")
+					if err != nil{
+						fmt.Println(err.Error())
+					}
+
+					scores := []Gmresult{}
+					for rows.Next(){
+						res_dat := Gmresult{}
+						uid     := 0
+						game_id := 0
+						score   := 0
+						message_id := ""
+						rows.Scan(&uid,&score,&game_id,&message_id)
+						res_dat.MessageID = message_id
+						res_dat.Uid = uid
+						res_dat.GameId = game_id
+						res_dat.Score = score
+						scores = append(scores,res_dat)
+					}
+
+					//todo 现在处理的2人数据后期添加多人数据比较需要优化 game_conf 后期保存到redis中
+					if (scores[0].Score - scores[1].Score) > 0 {
+
+						//game_id , play_num , win_num , uid , win_score
+						fmt.Println("jbzhongg")
+						back_dat := make(map[string]string)
+						back_dat["result"] = "win"
+						Res.Data = back_dat
+						Res.MessageId = scores[0].MessageID
+						fmt.Println("12",strconv.Itoa(scores[0].GameId),strconv.Itoa(scores[0].Uid))
+						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
+						mp := make(map[*websocket.Conn]interface{})
+						mp[con] = Res
+						//game_id , play_num , win_num , uid , win_score
+						WriteChannel <- mp
+
+						back_dat["result"] = "lose"
+						Res.Data = back_dat
+						Res.MessageId = scores[1].MessageID
+						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
+						mp[con] = Res
+						WriteChannel <- mp
+
+					}
+
+					if (scores[0].Score - scores[1].Score) == 0{
+
+						back_dat := make(map[string]string)
+						back_dat["result"] = "draw"
+						Res.Data = back_dat
+						Res.MessageId = scores[0].MessageID
+						fmt.Println(strconv.Itoa(scores[0].GameId),strconv.Itoa(scores[0].Uid))
+						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
+						mp := make(map[*websocket.Conn]interface{})
+						mp[con] = Res
+						WriteChannel <- mp
+
+						back_dat["result"] = "draw"
+						Res.Data = back_dat
+						Res.MessageId = scores[1].MessageID
+						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
+						mp[con] = Res
+						WriteChannel <- mp
+
+					}
+
+				}
+			}
+		}
+
+	//user message
+	case USER_MESSAGE:
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		game_id := req_data.Data["game_id"].(string)
+		data := req_data.Data
+		err := PlatFormUser[game_id][uid].WriteJSON(data)
+		if err != nil{
+			Res.ErrorCode = FAILED_BACK
+			Res.Msg = err.Error()
+			ws.WriteJSON(Res)
+		}else{
+			Res.ErrorCode = SUCESS_BACK
+			ws.WriteJSON(Res)
+		}
+
 	} //end switch
 
 	return nil
@@ -479,21 +644,21 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 		return err
 	}
 
-	room_message := []string{}
-
 	if _, ok := PlatFormUser[game_id]; ok {
-
 		//给房间内的所用玩家同步信息
 		for _, v := range c_data {
-			fmt.Println("--bt->", v)
+			fmt.Println("--bt->",v)
 			if con, oo := PlatFormUser[game_id][v]; oo {
-
-				udat := PfRedis.GetKey(fmt.Sprintf(USER_GAME_KEY, oo))
 				Res := ResponeDat{}
 				Res.ErrorCode = SUCESS_BACK
-				room_message = append(room_message, udat)
+
 				switch data.(type) {
 				case string:
+					room_message := []string{}
+					for _, v := range c_data {
+						udat := PfRedis.GetKey(fmt.Sprintf(USER_GAME_KEY, v))
+						room_message = append(room_message, udat)
+					}
 					back_data := make(map[string]interface{})
 					back_data["uid"] = v
 					back_data["info"] = room_message
@@ -512,22 +677,12 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 				}
 				//todo 并发写入问题
 				if is_exists{
-					fmt.Println(Res)
-
 					mp := make(map[*websocket.Conn]interface{})
 					mp[con] = Res
 					WriteChannel <- mp
-					//err := con.WriteJSON(Res) //判断用户存在，则发送响应数据
-					//if err != nil {
-					//	println("发送用户信息失败:")
-					//	return err
-					//}
-
 					online_key := fmt.Sprintf(ONLINE_KEY, v)
 					PfRedis.Expire(online_key, time.Second*3)
-
 				}
-
 			}
 		}
 	} //end for
@@ -570,16 +725,58 @@ func ClearnDisconnect() {
 						fmt.Println(err)
 						continue
 					}
-					println("is_usert", is_exists)
+					println("is_usert",is_exists)
 					//不存在
 					if is_exists == false {
 						PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
 						PfRedis.delSet(fmt.Sprintf(CLIENT_LOGIN_KYE, game_id), uid) //从登陆的数据表中删除
-						delete(PlatFormUser[game_id], uid)                          //移除ws对象                    															//移除ws对象
+						delete(PlatFormUser[game_id], uid) //移除ws对象                    															//移除ws对象
 					}
 
 				}
 			}
 		}
 	}
+}
+
+//获取
+func UserGameResulta(c echo.Context) error{
+	vals ,err := c.FormParams()
+	 if err != nil{
+	 	return err
+	 }
+	 uid := vals.Get("uid")
+    game_id := vals.Get("game_id")
+	userres := UserGameResult{}
+	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = %s and o.uid = %s"
+
+	models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(runsql,uid,game_id),&userres)
+	Res := ResponeDat{}
+	Res.ErrorCode = SUCESS_BACK
+	Res.Data = userres
+	return c.JSON(http.StatusOK,Res)
+
+}
+
+//游戏结果列表
+func GameResultList(c echo.Context) error{
+	vals ,err := c.FormParams()
+	if err != nil{
+		return err
+	}
+
+	game_id := vals.Get("game_id")
+	userres := UserGameResult{}
+	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = %s"
+	models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(runsql,game_id),&userres)
+	Res := ResponeDat{}
+	Res.ErrorCode = SUCESS_BACK
+	Res.Data = userres
+	return c.JSON(http.StatusOK,Res)
+}
+
+
+func TimeOut(){
+	const t  = 10
+	time.Now().Add(t * time.Second ) //当前的超时的操作的过程使用这样的方式控制超时的操作
 }
