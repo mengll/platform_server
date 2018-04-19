@@ -658,10 +658,10 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 
 				switch data.(type) {
 				case string:
-					room_message := []string{}
+					room_message := []map[string]interface{}{}
 					for _, v := range c_data {
 						udat := PfRedis.GetKey(fmt.Sprintf(USER_GAME_KEY, v))
-						room_message = append(room_message, udat)
+						room_message = append(room_message, StrToMap(udat))
 					}
 					back_data := make(map[string]interface{})
 					back_data["uid"] = v
@@ -705,6 +705,7 @@ func IntFromFloat64(x float64) int {
 	panic(fmt.Sprintf("%g is out of the int32 range", x))
 }
 
+//map 转字符串
 func MaptoJson(data map[string]interface{}) string {
 	configJSON, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
@@ -712,6 +713,14 @@ func MaptoJson(data map[string]interface{}) string {
 	}
 	return string(configJSON) //返回格式化后的字符串的内容0
 }
+
+//str to map
+func StrToMap(data string) map[string]interface{} {
+	var dat map[string]interface{}
+	json.Unmarshal([]byte(data), &dat)
+	return dat
+}
+
 
 //清除断线的用户信息
 func ClearnDisconnect() {
