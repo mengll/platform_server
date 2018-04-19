@@ -565,6 +565,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						fmt.Println("jbzhongg")
 						back_dat := make(map[string]string)
 						back_dat["result"] = "win"
+						back_dat["win_point"] = "15"
 						Res.Data = back_dat
 						Res.MessageId = scores[0].MessageID
 						fmt.Println("12",strconv.Itoa(scores[0].GameId),strconv.Itoa(scores[0].Uid))
@@ -575,6 +576,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						WriteChannel <- mp
 
 						back_dat["result"] = "lose"
+						back_dat["win_point"] = "-15"
 						Res.Data = back_dat
 						Res.MessageId = scores[1].MessageID
 						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
@@ -587,6 +589,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 						back_dat := make(map[string]string)
 						back_dat["result"] = "draw"
+						back_dat["win_point"] = "0"
 						Res.Data = back_dat
 						Res.MessageId = scores[0].MessageID
 						fmt.Println(strconv.Itoa(scores[0].GameId),strconv.Itoa(scores[0].Uid))
@@ -596,6 +599,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						WriteChannel <- mp
 
 						back_dat["result"] = "draw"
+						back_dat["win_point"] = "0"
 						Res.Data = back_dat
 						Res.MessageId = scores[1].MessageID
 						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
@@ -766,7 +770,7 @@ func GameResultList(c echo.Context) error{
 	}
 
 	game_id := vals.Get("game_id")
-	userres := UserGameResult{}
+	userres := []UserGameResult{}
 	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = %s"
 	models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(runsql,game_id),&userres)
 	Res := ResponeDat{}
