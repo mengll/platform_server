@@ -61,17 +61,9 @@ func SaveWinScore() (*sql.Stmt,error){
 	if err !=nil{
 		return nil,err
 	}
-	run_sql := "insert into gp_user_game_info (game_id , play_num , win_num , uid , win_score) values " +
-		"($1,$2,$3,$4,$5) "
+	run_sql := "insert into gp_user_game_info (game_id , play_num , win_num , uid , win_point) values " +
+		"($1,$2,$3,$4,$5) ON CONFLICT (uid,game_id) DO UPDATE set  play_num =  excluded.play_num +1,win_num = gp_user_game_info.win_num + excluded.win_num,win_point = gp_user_game_info.win_point + excluded.win_point"
+
 	return Pg.Prepure(run_sql)
 }
 //ON CONFLICT (uid,game_id) DO UPDATE set  play_num =  play_num +1,win_num = win_num + excluded.win_num,win_score = win_score + excluded.win_score
-
-func GetUserGameResult()(*sql.Stmt,error){
-	err := Pg.Ping()
-	if err !=nil{
-		return nil,err
-	}
-	run_sql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = '$1' and o.uid = '$2'"
-	return Pg.Prepure(run_sql)
-}

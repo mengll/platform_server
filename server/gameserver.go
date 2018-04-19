@@ -538,7 +538,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 				message_id ,r_err := PfRedis.SMembers(res_key)
 				if r_err == nil{
 					mids := strings.Join(message_id,",")
-					fmt.Println("select uid ,score ,game_id,message_id from gp_game_result where message_id in("+mids+") order by score desc ")
 					rows,err :=  models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where message_id in("+mids+") order by score desc ")
 					if err != nil{
 						fmt.Println(err.Error())
@@ -558,30 +557,34 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						res_dat.Score = score
 						scores = append(scores,res_dat)
 					}
-
+					save_score ,s_err:= models.SaveWinScore()
+					if s_err != nil{
+						fmt.Println(s_err.Error())
+					}
 					//todo 现在处理的2人数据后期添加多人数据比较需要优化 game_conf 后期保存到redis中
 					if (scores[0].Score - scores[1].Score) > 0 {
 
 						//game_id , play_num , win_num , uid , win_score
-						fmt.Println("jbzhongg")
 						back_dat := make(map[string]string)
 						back_dat["result"] = "win"
 						back_dat["win_point"] = "15"
 						Res.Data = back_dat
 						Res.MessageId = scores[0].MessageID
-						fmt.Println("12",strconv.Itoa(scores[0].GameId),strconv.Itoa(scores[0].Uid))
+
 						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
 						mp := make(map[*websocket.Conn]interface{})
 						mp[con] = Res
 						//game_id , play_num , win_num , uid , win_score
+						save_score.Exec(game_id,1,1,strconv.Itoa(scores[0].Uid),15)
 						WriteChannel <- mp
 
 						back_dat["result"] = "lose"
-						back_dat["win_point"] = "-15"
+						back_dat["win_point"] = "0"
 						Res.Data = back_dat
 						Res.MessageId = scores[1].MessageID
 						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
 						mp[con] = Res
+						save_score.Exec(game_id,1,0,strconv.Itoa(scores[1].Uid),0)
 						WriteChannel <- mp
 
 					}
@@ -597,6 +600,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
 						mp := make(map[*websocket.Conn]interface{})
 						mp[con] = Res
+						save_score.Exec(game_id,1,0,strconv.Itoa(scores[0].Uid),0)
 						WriteChannel <- mp
 
 						back_dat["result"] = "draw"
@@ -605,10 +609,11 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						Res.MessageId = scores[1].MessageID
 						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
 						mp[con] = Res
+						save_score.Exec(game_id,1,0,strconv.Itoa(scores[1].Uid),0)
 						WriteChannel <- mp
 
 					}
-
+					defer save_score.Close()
 				}
 			}
 		}
@@ -817,7 +822,6 @@ func GameResultList(c echo.Context) error{
 	}
 	return c.JSON(http.StatusOK,Res)
 }
-
 
 func TimeOut(){
 	const t  = 10
