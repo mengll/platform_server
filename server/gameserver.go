@@ -783,7 +783,7 @@ func UserGameResulta(c echo.Context) error{
 		row := models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(user_sql,uid))
 		row.Scan(&userres.NickName,&userres.Avatar)
 
-		Res.ErrorCode = FAILED_BACK
+		Res.ErrorCode = SUCESS_BACK
 		Res.Data = userres
 		Res.Msg       = err.Error()
 	}
