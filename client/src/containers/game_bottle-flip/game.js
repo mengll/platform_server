@@ -812,6 +812,10 @@ export default class Game extends THREE.EventDispatcher {
     this.render();
   }
 
+  stop = () => {
+    this.pause = true;
+  }
+
   get difficulty() {
     const v = 1 - Math.pow(0.5, this.steps.length / 28);
     return v;

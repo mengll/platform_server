@@ -45,7 +45,6 @@ class Heartbeat extends Component {
 class App extends Component {
 
   updateProfile = profile => {
-    console.log('updaet', profile);
     this.setState({auth: {profile, update: this.updateProfile}})
   }
 

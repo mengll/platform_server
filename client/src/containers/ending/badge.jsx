@@ -5,7 +5,7 @@ import styled, { css } from 'styled-components';
 const Colors = {
     win: 'rgba(247,45,81,1)',
     lose: 'white',
-    draw: 'white',
+    draw: 'rgba(53,134,255,1)',
 };
 
 const Label = styled.div`
@@ -47,15 +47,21 @@ const Avatar = styled.div`
     background-color: rgba(162,162,162,1);
 `;
 
+const Texts = {
+    win: '胜　利',
+    lose: '失　败',
+    draw: '平　局',
+}
+
 export default class Badge extends Component {
     render() {
-        const {type, text, ...rest} = this.props;
+        const {type, ...rest} = this.props;
         return (
             <div {...rest}>
                 <Border type={type}>
                     <Avatar></Avatar>
                 </Border>
-                <Label type={type}>{ text }</Label>
+                <Label type={type}>{ Texts[type] }</Label>
             </div>
         )
     }

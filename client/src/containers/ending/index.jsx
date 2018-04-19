@@ -1,6 +1,8 @@
 import React, { Component } from 'react';
 import styled from 'styled-components';
 
+import { Redirect, Link } from 'react-router-dom';
+
 import Badge from './badge';
 import Player from './player';
 
@@ -137,7 +139,8 @@ const ReplayButton = styled.div`
     margin-bottom: 5vw;
 `
 
-const BackButton = styled.div`
+const BackButton = styled(Link).attrs({to: '/'})`
+    display: block;
     margin: 0 auto;
     width: 64vw;
     height: 13vw;
@@ -153,19 +156,24 @@ const BackButton = styled.div`
 
 export default class Matching extends Component {
   render() {
-    return (
-      <Wrapper>
-        <TopBadge type="win" text="胜　利"/>
-        <Profile>
-            <Content>15 胜点</Content>
-            <PlayerBox>
-                <Player gender="male"/>
-                <Player gender="female"/>
-            </PlayerBox>
-        </Profile>
-        <ReplayButton>再来一局</ReplayButton>
-        <BackButton>换个游戏</BackButton>
-      </Wrapper>
-    );
+    const params = this.props.location.state;
+    if (params) {
+      return (
+        <Wrapper>
+          <TopBadge type={params.result}/>
+          <Profile>
+              <Content>15 胜点</Content>
+              <PlayerBox>
+                  <Player gender="male"/>
+                  <Player gender="female"/>
+              </PlayerBox>
+          </Profile>
+          <ReplayButton>再来一局</ReplayButton>
+          <BackButton>返回首页</BackButton>
+        </Wrapper>
+      );
+    } else {
+      return <Redirect to="/"/>
+    }
   }
 }

@@ -7,7 +7,7 @@ import { AuthContext } from '../../context';
 
 class BottleFlipGame extends Component {
 
-  TIME_LIMIT = 40
+  TIME_LIMIT = 10
 
   state = {
     mine: 0,
@@ -19,63 +19,72 @@ class BottleFlipGame extends Component {
   game = new BottleFlip();
 
   timer = null;
+  start = new Date();
 
-  componentDidMount() {
+  handleRoomMessage = ({data}) => {
+    const { profile } = this.props;
+
+    if (data.uid !== profile.uid) {
+      this.setState({
+          opponent: data.score
+      })
+    }
+  }
+
+  handleGameScore = (event) => {
     const { profile, params } = this.props;
 
-    this.game.start();
+    const score = event.score;
+    client.call('room_message',  {room: params.room, data:{score, uid: profile.uid} })
+    this.setState({
+      mine: score
+    })
+  }
 
-    this.game.addEventListener('score', (event) => {
-      const score = event.score;
-      client.call('room_message',  {room: params.room, data:{score, uid: profile.uid} })
+  handleTick = async() => {
+    const { profile, params } = this.props;
+
+    const countdown = this.TIME_LIMIT - Math.ceil((new Date() - this.start) / 1000);
+    if (countdown >= 0) {
       this.setState({
-        mine: score
+        countdown: countdown
       })
-    })
 
+      if (countdown == 0) {
+        clearInterval(this.timer);
+        const data = {
+          uid: profile.uid,
+          value: this.state.mine,
+          text: this.state.mine.toString(), 
+          extra: {},
+          room: params.room
+        }
 
-    client.on('notify.room_message', ({data}) => {
-      if (data.uid !== profile.uid) {
-          this.setState({
-              opponent: data.score
-          })
-      }
-    })
-
-    this.wrapper.current.appendChild(this.game.renderer.domElement);
-
-    const start = new Date();
-    this.timer = setInterval(async () => {
-      const countdown = this.TIME_LIMIT - Math.ceil((new Date() - start) / 1000);
-      if (countdown >= 0) {
-        this.setState({
-          countdown: countdown
-        })
-
-        if (countdown == 0) {
-          clearInterval(this.timer);
-          const data = {
-            uid: profile.uid,
-            value: this.state.mine,
-            text: this.state.mine.toString(), 
-            extra: {},
-            room: params.room
-          }
-          const {success, result, message} = await client.call('game_result', data)
-          if (success) {
-            if (this.props.onResult) {
-              this.props.onResult({...data, ...result});
-            }
+        const {success, result, message} = await client.call('game_result', data)
+        
+        if (success) {
+          if (this.props.onResult) {
+            this.props.onResult({...data, ...result});
           }
         }
       }
+    }
+  }
 
-    }, 1000);
+  componentDidMount() {
+    this.game.start();
+    this.wrapper.current.appendChild(this.game.renderer.domElement);
+    this.timer = setInterval(this.handleTick, 1000);
+    this.game.addEventListener('score', this.handleGameScore)
+    client.on('notify.room_message', this.handleRoomMessage);
     
   }
 
   componentWillUnmount() {
+    this.game.stop();
     clearInterval(this.timer);
+    this.game.removeEventListener('score', this.handleGameScore);
+    client.off('notify.room_message', this.handleRoomMessage);
     this.wrapper.current.removeChild(this.game.renderer.domElement);
   }
 

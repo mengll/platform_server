@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import styled from 'styled-components';
 
 import client from '../../client';
+import share from '../../components/share/';
 
 import { Redirect } from 'react-router-dom';
 
@@ -175,22 +176,6 @@ const Close = styled.div`
   background-size: cover;
 `
 
-
-class Runner extends Component {
-
-  componentDidMount() {
-    const {children: runner, ...rest} = this.props;
-    // console.log(this.props);
-    if (runner) {
-      runner(rest);
-    }
-  }
-
-  render() {
-    return null;
-  }
-}
-
 class WatingTime extends Component {
   timer = null;
   
@@ -248,10 +233,27 @@ class DefaultMatching extends Component {
 }
 
 class CreateMatching extends Component {
+  room = null;
+  profile = null;
+
+  async componentDidMount() {
+    const { profile } = this.props;
+    const {success, result, message} = await client.call('create_room',{uid: profile.uid, user_limit: 2});
+    this.profile = profile;
+    this.room = result.room_id;
+
+    if (success) {
+      share.share({
+        image: window.location.origin + '/bottle-flip.jpg',
+        url: window.location.origin + '/#/invite/' +  this.room,
+        title: '这游戏真神，每天晚上不玩一下都睡不着觉！',
+        content: '进来和我一决高下吧，来吧~'
+      });
+    }
+  }
 
   cancel = async () => {
-    const { profile, room } = this.props;
-    await client.call('out_room', {uid: profile.uid, room: room});
+    await client.call('out_room', {uid: this.profile.uid, room: this.room});
     if(this.props.onCancel) {
       this.props.onCancel();
     }
