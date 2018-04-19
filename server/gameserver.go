@@ -822,7 +822,7 @@ func GameResultList(c echo.Context) error{
 		Res.ErrorCode = SUCESS_BACK
 		Res.Data = userres_list
 	}else{
-		Res.ErrorCode = FAILED_BACK
+		Res.ErrorCode = SUCESS_BACK
 		Res.Data = userres_list
 		Res.Msg       = err.Error()
 	}
