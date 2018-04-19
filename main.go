@@ -72,11 +72,12 @@ func main() {
 	e.Use(session.Middleware(sessions.NewCookieStore([]byte("secret"))))
 
 	e.Static("/", "./client/public/") //创建服务
-
 	e.GET("/gameserver", gameserver)
-
 	e.GET("/auth/callback", server.AuthCallback)
 
+	gv1 := e.Group("/v1/")
+	gv1.POST("/user_game_result",server.UserGameResulta)
+	gv1.POST("/game_result_list",server.GameResultList)
 	go WC()
 
 	e.Logger.Fatal(e.Start(":1323"))

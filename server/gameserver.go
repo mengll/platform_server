@@ -65,6 +65,14 @@ type (
 		MessageID string
 	}
 
+	UserGameResult struct {
+		NickName  string `json:"nick_name"`
+		Avatar     string `json:"avatar"`
+		PlayNum    int     `json:"play_num"`
+		WinNum     int     `json:"win_num"`
+		WinPoint   int      `json:"win_point"`
+	}
+
 )
 
 //clients_connect
@@ -173,18 +181,36 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		pg, pgerr := models.SaveLoginLog()
 
 		if pgerr == nil {
-			//`uid`,`game_id`,`ts`,`nick_name`,`gender`,`birth_day`,`ip`,`avatart`
-			res, err := pg.Exec(uid, game_id, now_time, udat.NickName, udat.Gender, udat.Brithday, ws.RemoteAddr().String(), udat.Avatar, req_data.MessageId)
+			//uid , game_id , ts , ip, message_id , data
+			_, err := pg.Exec(uid, game_id, now_time,ws.RemoteAddr().String(), req_data.MessageId,MaptoJson(req_data.Data))
+
 			if err != nil {
 				fmt.Println(err.Error())
 			}
-			fmt.Println(res.LastInsertId())
+
+			if pg != nil {
+				pg.Close()
+			}
 		} else {
 			fmt.Println(pgerr.Error())
 		}
 
-		if pg != nil {
-			pg.Close()
+		//保存玩家信息
+		saveUser,user_err := models.SaveUser()
+		if user_err == nil{
+			//uid , nick_name , avtar , births_day , gender  , ts , ip
+			_, err := saveUser.Exec(uid,udat.NickName,udat.Avatar,udat.Brithday,udat.Gender,now_time,ws.RemoteAddr().String())
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+
+			fmt.Println("保存用户信息")
+
+			if saveUser != nil{
+				saveUser.Close()
+			}
+		}else{
+			fmt.Println(user_err.Error())
 		}
 
 		if _, ok := PlatFormUser[game_id]; !ok {
@@ -530,9 +556,17 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						res_dat.Score = score
 						scores = append(scores,res_dat)
 					}
+					save_score,err_s:= models.SaveWinScore()
 
-					//todo 现在处理的2人数据后期添加多人数据比较需要优化
+					if err_s != nil{
+						fmt.Println(err_s.Error())
+
+					}
+					//todo 现在处理的2人数据后期添加多人数据比较需要优化 game_conf 后期保存到redis中
 					if (scores[0].Score - scores[1].Score) > 0 {
+
+						//game_id , play_num , win_num , uid , win_score
+						fmt.Println("jbzhongg")
 						back_dat := make(map[string]string)
 						back_dat["result"] = "win"
 						Res.Data = back_dat
@@ -541,18 +575,22 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
 						mp := make(map[*websocket.Conn]interface{})
 						mp[con] = Res
+						//game_id , play_num , win_num , uid , win_score
+						save_score.Exec(game_id,1,1,strconv.Itoa(scores[0].Uid),15)
 						WriteChannel <- mp
 
 						back_dat["result"] = "lose"
 						Res.Data = back_dat
 						Res.MessageId = scores[1].MessageID
 						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
-
+						save_score.Exec(game_id,1,0,strconv.Itoa(scores[1].Uid),-15)
 						mp[con] = Res
 						WriteChannel <- mp
+
 					}
 
 					if (scores[0].Score - scores[1].Score) == 0{
+
 						back_dat := make(map[string]string)
 						back_dat["result"] = "draw"
 						Res.Data = back_dat
@@ -561,17 +599,19 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
 						mp := make(map[*websocket.Conn]interface{})
 						mp[con] = Res
+						save_score.Exec(game_id,1,0,strconv.Itoa(scores[0].Uid),0)
 						WriteChannel <- mp
 
 						back_dat["result"] = "draw"
 						Res.Data = back_dat
 						Res.MessageId = scores[1].MessageID
 						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
-
+						save_score.Exec(game_id,1,0,strconv.Itoa(scores[1].Uid),0)
 						mp[con] = Res
 						WriteChannel <- mp
-					}
 
+					}
+					save_score.Close()
 				}
 			}
 		}
@@ -706,6 +746,20 @@ func ClearnDisconnect() {
 		}
 	}
 }
+
+//获取
+func UserGameResulta(c echo.Context) error{
+	userres := UserGameResult{}
+	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = '1998' and o.uid = '14866484'"
+	models.Pg.(*db.Pg).Db.QueryRow(runsql,&userres)
+	return nil
+}
+
+//游戏结果列表
+func GameResultList(c echo.Context) error{
+	return nil
+}
+
 
 func TimeOut(){
 	const t  = 10
