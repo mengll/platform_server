@@ -18,6 +18,7 @@ import (
 	"platform_server/libs/db"
 
 	"net/http"
+
 )
 
 type (
@@ -761,9 +762,12 @@ func UserGameResulta(c echo.Context) error{
 	 uid := vals.Get("uid")
     game_id := vals.Get("game_id")
 	userres := UserGameResult{}
-	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = %s and o.uid = %s"
+	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = '%s' and o.uid = '%s'"
+	fmt.Println(fmt.Sprintf(runsql,game_id,uid))
 
-	models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(runsql,uid,game_id),&userres)
+	row := models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(runsql,game_id,uid))
+	err = row.Scan(&userres.NickName,&userres.Avatar,&userres.PlayNum,&userres.WinNum,&userres.WinPoint)
+	
 	Res := ResponeDat{}
 	Res.ErrorCode = SUCESS_BACK
 	Res.Data = userres
@@ -773,18 +777,31 @@ func UserGameResulta(c echo.Context) error{
 
 //游戏结果列表
 func GameResultList(c echo.Context) error{
+
 	vals ,err := c.FormParams()
 	if err != nil{
 		return err
 	}
 
 	game_id := vals.Get("game_id")
-	userres := []UserGameResult{}
-	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = %s"
-	models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(runsql,game_id),&userres)
+	userres_list := []UserGameResult{}
+	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = '%s'"
+	rows,err := models.Pg.(*db.Pg).Db.Query(fmt.Sprintf(runsql,game_id))
+
+	if err != nil{
+		fmt.Println(err.Error())
+	}
+
+	for rows.Next(){
+		userres := UserGameResult{}
+		err = rows.Scan(&userres.NickName,&userres.Avatar,&userres.PlayNum,&userres.WinNum,&userres.WinPoint)
+		userres_list = append(userres_list,userres)
+	}
+
+	rows.Close()
 	Res := ResponeDat{}
 	Res.ErrorCode = SUCESS_BACK
-	Res.Data = userres
+	Res.Data = userres_list
 	return c.JSON(http.StatusOK,Res)
 }
 

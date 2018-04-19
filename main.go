@@ -76,8 +76,8 @@ func main() {
 	e.GET("/auth/callback", server.AuthCallback)
 
 	gv1 := e.Group("/v1/")
-	gv1.POST("/user_game_result",server.UserGameResulta)
-	gv1.POST("/game_result_list",server.GameResultList)
+	gv1.POST("user_game_result",server.UserGameResulta)
+	gv1.POST("game_result_list",server.GameResultList)
 	go WC()
 
 	e.Logger.Fatal(e.Start(":1323"))
