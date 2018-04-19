@@ -767,10 +767,17 @@ func UserGameResulta(c echo.Context) error{
 
 	row := models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(runsql,game_id,uid))
 	err = row.Scan(&userres.NickName,&userres.Avatar,&userres.PlayNum,&userres.WinNum,&userres.WinPoint)
-	
+
 	Res := ResponeDat{}
-	Res.ErrorCode = SUCESS_BACK
-	Res.Data = userres
+
+	if err == nil{
+		Res.ErrorCode = SUCESS_BACK
+		Res.Data = userres
+	}else{
+		Res.ErrorCode = FAILED_BACK
+		Res.Msg       = err.Error()
+	}
+
 	return c.JSON(http.StatusOK,Res)
 
 }
@@ -800,8 +807,14 @@ func GameResultList(c echo.Context) error{
 
 	rows.Close()
 	Res := ResponeDat{}
-	Res.ErrorCode = SUCESS_BACK
-	Res.Data = userres_list
+
+	if err == nil{
+		Res.ErrorCode = SUCESS_BACK
+		Res.Data = userres_list
+	}else{
+		Res.ErrorCode = FAILED_BACK
+		Res.Msg       = err.Error()
+	}
 	return c.JSON(http.StatusOK,Res)
 }
 
