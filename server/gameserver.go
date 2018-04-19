@@ -17,6 +17,7 @@ import (
 	"strings"
 	"platform_server/libs/db"
 
+	"net/http"
 )
 
 type (
@@ -556,12 +557,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						res_dat.Score = score
 						scores = append(scores,res_dat)
 					}
-					save_score,err_s:= models.SaveWinScore()
 
-					if err_s != nil{
-						fmt.Println(err_s.Error())
-
-					}
 					//todo 现在处理的2人数据后期添加多人数据比较需要优化 game_conf 后期保存到redis中
 					if (scores[0].Score - scores[1].Score) > 0 {
 
@@ -576,14 +572,12 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						mp := make(map[*websocket.Conn]interface{})
 						mp[con] = Res
 						//game_id , play_num , win_num , uid , win_score
-						save_score.Exec(game_id,1,1,strconv.Itoa(scores[0].Uid),15)
 						WriteChannel <- mp
 
 						back_dat["result"] = "lose"
 						Res.Data = back_dat
 						Res.MessageId = scores[1].MessageID
 						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
-						save_score.Exec(game_id,1,0,strconv.Itoa(scores[1].Uid),-15)
 						mp[con] = Res
 						WriteChannel <- mp
 
@@ -599,19 +593,17 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
 						mp := make(map[*websocket.Conn]interface{})
 						mp[con] = Res
-						save_score.Exec(game_id,1,0,strconv.Itoa(scores[0].Uid),0)
 						WriteChannel <- mp
 
 						back_dat["result"] = "draw"
 						Res.Data = back_dat
 						Res.MessageId = scores[1].MessageID
 						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
-						save_score.Exec(game_id,1,0,strconv.Itoa(scores[1].Uid),0)
 						mp[con] = Res
 						WriteChannel <- mp
 
 					}
-					save_score.Close()
+
 				}
 			}
 		}
@@ -749,15 +741,38 @@ func ClearnDisconnect() {
 
 //获取
 func UserGameResulta(c echo.Context) error{
+	vals ,err := c.FormParams()
+	 if err != nil{
+	 	return err
+	 }
+	 uid := vals.Get("uid")
+    game_id := vals.Get("game_id")
 	userres := UserGameResult{}
-	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = '1998' and o.uid = '14866484'"
-	models.Pg.(*db.Pg).Db.QueryRow(runsql,&userres)
-	return nil
+	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = %s and o.uid = %s"
+
+	models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(runsql,uid,game_id),&userres)
+	Res := ResponeDat{}
+	Res.ErrorCode = SUCESS_BACK
+	Res.Data = userres
+	return c.JSON(http.StatusOK,Res)
+
 }
 
 //游戏结果列表
 func GameResultList(c echo.Context) error{
-	return nil
+	vals ,err := c.FormParams()
+	if err != nil{
+		return err
+	}
+
+	game_id := vals.Get("game_id")
+	userres := UserGameResult{}
+	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = %s"
+	models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(runsql,game_id),&userres)
+	Res := ResponeDat{}
+	Res.ErrorCode = SUCESS_BACK
+	Res.Data = userres
+	return c.JSON(http.StatusOK,Res)
 }
 
 
