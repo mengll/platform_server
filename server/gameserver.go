@@ -115,6 +115,7 @@ var (
 	}
 	//数据写入通道
 	WriteChannel chan map[*websocket.Conn]interface{} = make(chan map[*websocket.Conn]interface{})
+	UIDS        = make(map[*websocket.Conn]string)
 )
 
 func init() {
@@ -173,7 +174,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		udat.NickName = profile.UserName
 		udat.Gender = strconv.Itoa(profile.Gender)
 		udat.Brithday = profile.Birthday
-
+		UIDS[ws] = udat.Uid
 		//保存玩家信息
 		saveUser, user_err := models.SaveUser()
 		if user_err == nil {
@@ -207,12 +208,21 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 	//进入游戏是初始化信息
 	case ENTER_GAME:
 		game_id := req_data.Data["game_id"].(string)
-		uid, had_uid := req_data.Data["uid"].(string)
-		if !had_uid {
+		uid := UIDS[ws]
+		if uid == "" {
+			fmt.Println("uid is not allowed by nil")
+			break
 		}
 
-		online_key := fmt.Sprintf(ONLINE_KEY, uid)
-		PfRedis.Expire(online_key, time.Second*3000)
+		fmt.Println("enter_game=>",game_id,uid)
+		//保存用户登录信息
+		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE, game_id)
+		login_num := PfRedis.getSetNum(login_key)
+		PfRedis.addSet(login_key, uid)
+
+		online_key := fmt.Sprintf(ONLINE_KEY,uid)
+		PfRedis.Expire(online_key,time.Second * 3000)
+
 		pg, pgerr := models.SaveLoginLog()
 
 		if pgerr == nil {
@@ -239,10 +249,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		}
 		PlatFormUser[game_id][uid] = ws
 
-		//保存用户登录信息
-		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE, game_id)
-		login_num := PfRedis.getSetNum(login_key)
-		PfRedis.addSet(login_key, uid)
+
 		back_dat := make(map[string]interface{})
 		back_dat["online_num"] = login_num + 1
 		back_dat["game_id"] = game_id
@@ -454,12 +461,19 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//信息传递
 	case ROOM_MESSAGE:
-		game_id := req_data.Data["game_id"].(string)
+
+		if _ ,ishad:= req_data.Data["game_id"].(string) ;!ishad{
+			Res.ErrorCode = FAILED_BACK
+			Res.Msg = "game_id is not found"
+			ws.WriteJSON(Res)
+			break
+		}
 		if _, ok := req_data.Data["room"]; !ok {
 			Res.ErrorCode = FAILED_BACK
 			Res.Msg = "room not found"
 			ws.WriteJSON(Res)
 		}
+		game_id := req_data.Data["game_id"].(string)
 		room := req_data.Data["room"].(string)
 		data := req_data.Data
 		err := BroadCast(room, game_id, data)
@@ -509,13 +523,13 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//游戏结果上报
 	case GAME_RESULT:
+		uid := UIDS[ws]
 		room := req_data.Data["room"].(string)
 		res_key := fmt.Sprintf(ROOM_RESULT_KEY, room)
 		user_limit := getSetNum(room)
 		result_num := getSetNum(res_key)
 		data := req_data.Data
 		fmt.Println(req_data.Data)
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
 		score := strconv.Itoa(int(req_data.Data["value"].(float64)))
 		text := req_data.Data["text"].(string)
 		extra := req_data.Data["extra"].(map[string]interface{})
@@ -656,11 +670,12 @@ func AuthCallback(c echo.Context) error {
 //发送广播
 func BroadCast(c_room string, game_id string, data interface{}) error {
 	fmt.Println("调用广播")
+	fmt.Println(c_room)
 	c_data, err := PfRedis.SMembers(c_room)
 	if err != nil {
 		return err
 	}
-
+	fmt.Println(game_id)
 	if _, ok := PlatFormUser[game_id]; ok {
 		//给房间内的所用玩家同步信息
 		for _, v := range c_data {
@@ -668,7 +683,7 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 			if con, oo := PlatFormUser[game_id][v]; oo {
 				Res := ResponeDat{}
 				Res.ErrorCode = SUCESS_BACK
-
+				println("123->")
 				switch data.(type) {
 				case string:
 					room_message := []map[string]interface{}{}
@@ -682,6 +697,8 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 					back_data["room"] = c_room
 					Res.Data = back_data
 					Res.Msg = START
+
+					fmt.Println(room_message)
 				case map[string]interface{}:
 					Res.Data = data.(map[string]interface{})
 					Res.Msg = ROOM_MESSAGE
