@@ -202,7 +202,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		//返回登录
 		Res.ErrorCode = SUCESS_BACK
 		Res.Msg = ""
-		Res.Data = profile
+		Res.Data = udat
 		ws.WriteJSON(Res)
 
 	//进入游戏是初始化信息
