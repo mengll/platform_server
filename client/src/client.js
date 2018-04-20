@@ -133,6 +133,7 @@ class Client extends EventEmitter {
 
 
     async call(method, params) {
+        console.log('client.call.' + method, params);
         await this.connected();
         
         const cmd = routes[method];
@@ -153,7 +154,7 @@ class Client extends EventEmitter {
                 }
 
                 this.pending[this.seq] = (response) => {
-                    console.log('client.call', {method, params, response});
+                    console.log('client.response', response);
                     resolve(response)
                 }
 

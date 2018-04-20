@@ -66,7 +66,7 @@ class App extends Component {
               <AuthRoute exact path="/game/:gameId" component={Game}/>
               <AuthRoute exact path="/matching" component={Matching}/>
               <AuthRoute exact path="/ending" component={Ending}/>
-              <AuthRoute exact path="/play" component={BottleFlipGame}/>
+              <AuthRoute exact path="/play/bottle-flip" component={BottleFlipGame}/>
               <AuthRoute path="/invite/:gameId/:roomId" component={Invite}/>
             </React.Fragment>
         </Router>

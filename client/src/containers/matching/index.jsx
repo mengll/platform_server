@@ -361,7 +361,7 @@ export default class Matching extends Component {
         </AuthContext.Consumer>
       );
     } else {
-      return <Redirect to={{ pathname: '/play', state: this.state.params }}/>
+      return <Redirect to={{ pathname: `/play/${gameId}`, state: this.state.params }}/>
     }
 
   }

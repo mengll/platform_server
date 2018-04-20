@@ -1,9 +1,13 @@
 import React, { Component } from 'react';
 
+import { Redirect } from 'react-router-dom';
+
 import BottleFlip from './game';
 
 import client from  '../../client';
 import { AuthContext } from '../../context';
+
+const gameId = 'bottle-flip';
 
 class BottleFlipGame extends Component {
 
@@ -53,6 +57,7 @@ class BottleFlipGame extends Component {
       if (countdown == 0) {
         clearInterval(this.timer);
         const data = {
+          game_id: gameId,
           uid: profile.uid,
           value: this.state.mine,
           text: this.state.mine.toString(), 
@@ -121,6 +126,10 @@ export default class Wrapper extends Component {
 
   render() {
       const params = this.props.location.state;
+      if (!params) {
+        return <Redirect to="/" />;
+      }
+
       return <AuthContext.Consumer>
         {
             ({profile}) => <BottleFlipGame profile={profile} params={params} onResult={this.handleResult}/>
