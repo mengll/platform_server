@@ -15,7 +15,7 @@ import (
 	"github.com/labstack/echo"
 
 	"platform_server/libs/db"
-	"strings"
+
 
 	"net/http"
 )
@@ -555,13 +555,10 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		if user_limit > result_num {
 			addSet(res_key, "'"+Res.MessageId+"'")
-			now_res := getSetNum(res_key)
-			if now_res == user_limit {
+
+			if result_num == user_limit {
 				//结果数据处理分发
-				message_id, r_err := PfRedis.SMembers(res_key)
-				if r_err == nil {
-					mids := strings.Join(message_id, ",")
-					rows, err := models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where message_id in(" + mids + ") order by score desc ")
+					rows, err := models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where room in(" + room + ") order by score desc ")
 					if err != nil {
 						fmt.Println(err.Error())
 					}
@@ -637,7 +634,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 					}
 					defer save_score.Close()
-				}
+
 			}
 		}
 
