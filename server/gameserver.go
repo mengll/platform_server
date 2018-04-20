@@ -60,9 +60,9 @@ type (
 	}
 
 	Gmresult struct {
-		Uid       int
+		Uid       string
 		Score     int
-		GameId    int
+		GameId    string
 		MessageID string
 	}
 
@@ -208,6 +208,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 	//进入游戏是初始化信息
 	case ENTER_GAME:
 		game_id := req_data.Data["game_id"].(string)
+
 		uid := UIDS[ws]
 		if uid == "" {
 			fmt.Println("uid is not allowed by nil")
@@ -544,6 +545,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		if pg_err != nil {
 			pg.Close()
+			fmt.Println(pg_err.Error())
 			return nil
 		}
 
@@ -567,8 +569,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 					scores := []Gmresult{}
 					for rows.Next() {
 						res_dat := Gmresult{}
-						uid := 0
-						game_id := 0
+						uid := ""
+						game_id := ""
 						score := 0
 						message_id := ""
 						rows.Scan(&uid, &score, &game_id, &message_id)
@@ -584,7 +586,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 					}
 					//todo 现在处理的2人数据后期添加多人数据比较需要优化 game_conf 后期保存到redis中
 					if (scores[0].Score - scores[1].Score) > 0 {
-
+						fmt.Println("【游戏结果播报】",scores,game_id)
 						//game_id , play_num , win_num , uid , win_score
 						back_dat := make(map[string]string)
 						back_dat["result"] = "win"
@@ -592,45 +594,45 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 						Res.Data = back_dat
 						Res.MessageId = scores[0].MessageID
 
-						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
+						con := PlatFormUser[scores[0].GameId][scores[0].Uid]
 						mp := make(map[*websocket.Conn]interface{})
 						mp[con] = Res
 						//game_id , play_num , win_num , uid , win_score
-						save_score.Exec(game_id, 1, 1, strconv.Itoa(scores[0].Uid), 15)
+						save_score.Exec(game_id, 1, 1, scores[0].Uid, 15)
 						WriteChannel <- mp
 
 						back_dat["result"] = "lose"
 						back_dat["win_point"] = "0"
 						Res.Data = back_dat
 						Res.MessageId = scores[1].MessageID
-						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
+						con = PlatFormUser[scores[1].GameId][scores[1].Uid]
 						mp[con] = Res
-						save_score.Exec(game_id, 1, 0, strconv.Itoa(scores[1].Uid), 0)
+						save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
 						WriteChannel <- mp
 
 					}
 
 					if (scores[0].Score - scores[1].Score) == 0 {
-
+						fmt.Println("【游戏结果播报2】",scores)
 						back_dat := make(map[string]string)
 						back_dat["result"] = "draw"
 						back_dat["win_point"] = "0"
 						Res.Data = back_dat
 						Res.MessageId = scores[0].MessageID
-						fmt.Println(strconv.Itoa(scores[0].GameId), strconv.Itoa(scores[0].Uid))
-						con := PlatFormUser[strconv.Itoa(scores[0].GameId)][strconv.Itoa(scores[0].Uid)]
+						fmt.Println(scores[0].GameId, scores[0].Uid)
+						con := PlatFormUser[scores[0].GameId][scores[0].Uid]
 						mp := make(map[*websocket.Conn]interface{})
 						mp[con] = Res
-						save_score.Exec(game_id, 1, 0, strconv.Itoa(scores[0].Uid), 0)
+						save_score.Exec(game_id, 1, 0, scores[0].Uid, 0)
 						WriteChannel <- mp
 
 						back_dat["result"] = "draw"
 						back_dat["win_point"] = "0"
 						Res.Data = back_dat
 						Res.MessageId = scores[1].MessageID
-						con = PlatFormUser[strconv.Itoa(scores[1].GameId)][strconv.Itoa(scores[1].Uid)]
+						con = PlatFormUser[scores[1].GameId][scores[1].Uid]
 						mp[con] = Res
-						save_score.Exec(game_id, 1, 0, strconv.Itoa(scores[1].Uid), 0)
+						save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
 						WriteChannel <- mp
 
 					}
