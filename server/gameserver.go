@@ -155,7 +155,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		ws.WriteJSON(Res)
 
 	case LOGIN:
-		game_id := req_data.Data["game_id"].(string)
+
 		fmt.Println("login")
 
 		accessToken := req_data.Data["access_token"].(string)
@@ -169,11 +169,9 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		// uid := strconv.Itoa(req_data.Data["uid"].(int) )
 		uid := strconv.Itoa(profile.UID)
-
 		udat := new(WSDat)
 		udat.Uid = strconv.Itoa(profile.UID)
 		udat.Avatar = profile.Avatar
-		udat.GameId = game_id
 		udat.NickName = profile.UserName
 		udat.Gender = strconv.Itoa(profile.Gender)
 		udat.Brithday = profile.Birthday
@@ -186,7 +184,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			if err != nil {
 				fmt.Println(err.Error())
 			}
-
 			fmt.Println("保存用户信息")
 
 			if saveUser != nil{
@@ -196,12 +193,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			fmt.Println(user_err.Error())
 		}
 
-		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE, udat.GameId)
-		//保存用户登录信息
-		PfRedis.addSet(login_key, uid)
-
-		fmt.Println(udat)
-		//生成用户信息json串
 		b, err := json.Marshal(udat) //格式化当前的数据信息
 		if err != nil {
 			fmt.Println("Encoding User Faild")
@@ -249,12 +240,12 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		if _, ok := PlatFormUser[game_id]; !ok {
 			PlatFormUser[game_id] = make(map[string]*websocket.Conn)
 		}
-
 		PlatFormUser[game_id][uid] = ws
 
+		//保存用户登录信息
 		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE, game_id)
 		login_num := PfRedis.getSetNum(login_key)
-
+		PfRedis.addSet(login_key, uid)
 		back_dat := make(map[string]interface{})
 		back_dat["online_num"] = login_num + 1
 		back_dat["game_id"] = game_id
