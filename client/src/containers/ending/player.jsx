@@ -2,14 +2,7 @@ import React, { Component } from 'react';
 
 import styled, { css } from 'styled-components';
 
-const Gender = styled.div`
-  display: inline-block;
-  vertical-align: middle;
-  width: 3vw;
-  height: 3vw;
-  background-image: ${ ({type}) => `url(${ require(`./gender_${type}.png`) })` };
-  background-size: cover;
-`;
+import Gender from '../../components/gender/';
 
 const Wrapper = styled.div`
     position: relative;
@@ -22,6 +15,8 @@ const Avatar = styled.div`
     height: 13vw;
     border-radius: 6.5vw;
     background: rgba(162,162,162,1);
+    background-image: url(${props => props.image});
+    background-size: cover;
 `;
 
 const AbsoluteGender = styled(Gender)`
@@ -34,8 +29,8 @@ export default class Player extends Component {
     render() {
         const {gender, avatar, ...rest} = this.props;
         return <Wrapper>
-            <Avatar/>
-            <AbsoluteGender type={gender}/>
+            <Avatar image={avatar}/>
+            <AbsoluteGender number={gender}/>
         </Wrapper>;
     }
 }

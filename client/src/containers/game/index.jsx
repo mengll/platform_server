@@ -5,6 +5,8 @@ import styled from 'styled-components';
 
 import { AuthContext } from '../../context';
 
+import { request } from '../../utils';
+
 import client from '../../client';
 
 const Wrapper = styled.div`
@@ -188,8 +190,9 @@ const MatchButton = styled(Link)`
   margin-bottom: 5vw;
 `
 
-const InviteButton = styled.div`
-  cursor: pointer;
+const InviteButton = styled(Link)`
+  display: block;
+  text-decoration: none;
   width: 75vw;
   height: 13vw;
   line-height: 13vw;
@@ -200,41 +203,90 @@ const InviteButton = styled.div`
   font-size:4.27vw;
 `
 
-export default class Game extends Component {
+class Game extends Component {
+  state = {
+    online_num: 0,
+    statics: {
+      play_num: 0,
+      win_num: 0,
+      win_point: 0,
+    }
+  }
+
+  async componentDidMount() {
+    const { gameId, profile } = this.props;
+
+    const[game, statics] = await Promise.all([
+      client.call('enter_game', {uid: profile.uid, game_id: gameId}),
+      request('/v1/user_game_result', {uid: profile.uid, game_id: gameId}),
+    ])
+
+    if (game.success) {
+      this.setState({
+        online_num: game.result.online_num
+      })
+    }
+
+    if (statics.success) {
+      this.setState({
+        statics: statics.payload
+      })
+    }
+  }
+
   render() {
-    console.log('game');
+    const { gameId, profile } = this.props;
+    const { statics } = this.state;
+
+    return <Wrapper>
+      <Header>
+        <Icon/>
+        <Title>跳一跳</Title>
+        <Description>{this.state.online_num}人在玩</Description>
+        <RuleLink>玩法规则 &gt;</RuleLink>
+      </Header>
+      <Profile>
+        <Surround/>
+        <Avatar image={profile.avatar}/>
+        <Username>{profile.username}</Username>
+        <Record>
+          <span>总局数: {statics.play_num}</span>
+          <span> 胜率: {statics.play_num > 0 ? Math.ceil(statics.win_num / statics.play_num * 100) : 100}%</span>
+        </Record>
+      </Profile>
+      <Ranking>
+        <Text>查看排行榜</Text>
+        <RankingLink>胜点：{statics.win_point} &gt;</RankingLink>
+      </Ranking>
+      <Bottom>
+        <MatchButton to={{
+          pathname: '/matching',
+          state: {
+            type: 'auto',
+            gameId
+          }
+        }}>开始匹配</MatchButton>
+        <InviteButton to={{
+          pathname: '/matching',
+          state: {
+            type: 'create',
+            gameId
+          }
+        }}>找微信QQ好友一起玩</InviteButton>
+      </Bottom>
+    </Wrapper>;
+  }
+}
+
+
+export default class GameRoute extends Component {
+  render() {
+    const { gameId } = this.props.match.params;
+    
     return (
       <AuthContext.Consumer>
       {
-        ({profile}) => <Wrapper>
-          <Header>
-            <Icon/>
-            <Title>跳一跳</Title>
-            <Description>65238对在玩</Description>
-            <RuleLink>玩法规则 &gt;</RuleLink>
-          </Header>
-          <Profile>
-            <Surround/>
-            <Avatar image={profile.avatar}/>
-            <Username>{profile.username}</Username>
-            <Record>总局数: 1 胜率: 100%</Record>
-          </Profile>
-          <Ranking>
-            <Text>查看排行榜</Text>
-            <RankingLink>胜点：110 &gt;</RankingLink>
-          </Ranking>
-          <Bottom>
-            <MatchButton to={'/matching'}>开始匹配</MatchButton>
-            <InviteButton onClick={async () => {
-              this.props.history.push({
-                pathname: '/matching',
-                state: {
-                  type: 'create',
-                }
-              })
-            }} >找微信QQ好友一起玩</InviteButton>
-          </Bottom>
-        </Wrapper>
+        ({profile}) => <Game profile={profile} gameId={gameId}/>
       }
       </AuthContext.Consumer>
     );

@@ -60,11 +60,13 @@ class BottleFlipGame extends Component {
           room: params.room
         }
 
+        // this.props.onResult({...data, result: 'lose', winning_point: 15});
+
         const {success, result, message} = await client.call('game_result', data)
         
         if (success) {
           if (this.props.onResult) {
-            this.props.onResult({...data, ...result});
+            this.props.onResult({...data, ...result, players: params.info});
           }
         }
       }

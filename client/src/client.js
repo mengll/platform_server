@@ -1,5 +1,26 @@
 import EventEmitter from "eventemitter2";
 
+
+// START          = "af01"
+// LOGIN          = "af02"
+// LOGOUT         = "af03"
+// CREATE_ROOM    = "af04"
+// SEARCH_MATCH   = "af05"
+// GAME_HEART     = "af06"
+// JOIN_CANCEL    = "af07"
+// ROOM_MESSAGE   = "af08"
+// OUT_ROOM       = "af09"
+// RECONNECT      = "af10"
+// NOW_ONLINE_NUM = "af11"
+// JOIN_ROOM      = "af12"
+// GAME_RESULT    = "af13"
+// AUTHORIZE      = "af14"
+// TIME_OUT       = "af15"
+// DISCONNECT     = "af16"
+// ONLINE         = "af17"
+// USER_MESSAGE   = "af18"
+// ENTER_GAME	   = "af19"
+
 const routes = {
     start: 'af01',
     login: 'af02',
@@ -15,6 +36,8 @@ const routes = {
     join_room: 'af12',
     game_result: 'af13',
     authorize: 'af14',
+    online: 'af17',
+    enter_game: 'af19'
 }
 
 const cmds = {
@@ -32,6 +55,8 @@ const cmds = {
     'af12': 'join_room',
     'af13': 'game_result',
     'af14': 'authorize',
+    'af17': 'online',
+    'af19': 'enter_game'
 }
 
 const game_id = "1998";
@@ -68,7 +93,7 @@ class Client extends EventEmitter {
                 // NOTIFY
                 const method = cmds[msg];
                 if (method === undefined) {
-                    console.log('unknow notify', pack);
+                    console.log('client.notify.unknow', pack);
                 } else {
                     if (success) {
                         this.notify({
@@ -108,7 +133,6 @@ class Client extends EventEmitter {
 
 
     async call(method, params) {
-
         await this.connected();
         
         const cmd = routes[method];
@@ -123,12 +147,13 @@ class Client extends EventEmitter {
 
                 const action = {
                     cmd,
-                    data: {...params, game_id},
+                    data: {...params},
                     message_key: "",
                     message_id: this.seq.toString()
                 }
 
                 this.pending[this.seq] = (response) => {
+                    console.log('client.call', {method, params, response});
                     resolve(response)
                 }
 
@@ -138,6 +163,7 @@ class Client extends EventEmitter {
     }
 
     async push(method, params) {
+        console.log('client.push', {method, params});
         await this.connected();
         
         const cmd = routes[method];
@@ -152,7 +178,7 @@ class Client extends EventEmitter {
 
                 const action = {
                     cmd,
-                    data: {...params, game_id},
+                    data: {...params},
                     message_key: "",
                     message_id: this.seq.toString()
                 }

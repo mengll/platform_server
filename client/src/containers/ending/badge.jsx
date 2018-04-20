@@ -4,7 +4,7 @@ import styled, { css } from 'styled-components';
 
 const Colors = {
     win: 'rgba(247,45,81,1)',
-    lose: 'white',
+    lose: 'rgba(103,103,103,1)',
     draw: 'rgba(53,134,255,1)',
 };
 
@@ -45,6 +45,9 @@ const Avatar = styled.div`
     border-radius: 12.5vw;
     border: 1vw solid rgba(255,255,255,1);
     background-color: rgba(162,162,162,1);
+
+    background-image: url(${props => props.image});
+    background-size: cover;
 `;
 
 const Texts = {
@@ -55,11 +58,11 @@ const Texts = {
 
 export default class Badge extends Component {
     render() {
-        const {type, ...rest} = this.props;
+        const {type, avatar, ...rest} = this.props;
         return (
             <div {...rest}>
                 <Border type={type}>
-                    <Avatar></Avatar>
+                    <Avatar image={avatar}></Avatar>
                 </Border>
                 <Label type={type}>{ Texts[type] }</Label>
             </div>

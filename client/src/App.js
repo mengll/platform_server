@@ -62,11 +62,12 @@ class App extends Component {
         <Router>
             <React.Fragment>
               <Route path="/authorize/:accessToken?" component={Authorize}/>
-              <AuthRoute exact path="/" component={Game}/>
+              <Route exact path="/" render={() => <Redirect to="/game/bottle-flip"/>}/>
+              <AuthRoute exact path="/game/:gameId" component={Game}/>
               <AuthRoute exact path="/matching" component={Matching}/>
               <AuthRoute exact path="/ending" component={Ending}/>
               <AuthRoute exact path="/play" component={BottleFlipGame}/>
-              <AuthRoute path="/invite/:roomId" component={Invite}/>
+              <AuthRoute path="/invite/:gameId/:roomId" component={Invite}/>
             </React.Fragment>
         </Router>
 

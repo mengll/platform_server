@@ -8,14 +8,7 @@ import { Redirect } from 'react-router-dom';
 
 import { AuthContext } from '../../context';
 
-const Gender = styled.div`
-  display: inline-block;
-  vertical-align: middle;
-  width: 3vw;
-  height: 3vw;
-  background-image: ${ ({type}) => `url(${ require(`./gender_${type}.png`) })` };
-  background-size: cover;
-`;
+import Gender from '../../components/gender/';
 
 const Wrapper = styled.div`
   box-sizing: border-box;
@@ -101,6 +94,9 @@ const Avatar = styled.div`
   border-radius: 10.5vw;
 
   background-color: #3586FF;
+
+  background-image: url(${props => props.image});
+  background-size: cover;
 `
 
 const UserName = styled.div`
@@ -204,13 +200,13 @@ class WatingTime extends Component {
 class DefaultMatching extends Component {
 
   componentDidMount() {
-    const { profile } = this.props;
-    client.push('search_match', {user_limit: 2, uid: profile.uid})
+    const { profile, gameId } = this.props;
+    client.push('search_match', {user_limit: 2, game_id: gameId, uid: profile.uid})
   }
 
   cancel = async () =>  {
-    const { profile } = this.props;
-    await client.call('join_cancel', {uid: profile.uid})
+    const { profile, gameId } = this.props;
+    await client.call('join_cancel', {uid: profile.uid, game_id: gameId})
     if(this.props.onCancel) {
       this.props.onCancel();
     }
@@ -224,8 +220,8 @@ class DefaultMatching extends Component {
       <WatingTime/>
       <GameName>跳一跳</GameName>
       <Profile>
-        <Avatar/>
-        <UserName><NameText>{profile.username}</NameText> <Gender type="male"/></UserName>
+        <Avatar image={profile.avatar}/>
+        <UserName><NameText>{profile.username}</NameText> <Gender number={profile.gender}/></UserName>
       </Profile>
       <Close onClick={this.cancel} />
     </Wrapper>;
@@ -237,15 +233,15 @@ class CreateMatching extends Component {
   profile = null;
 
   async componentDidMount() {
-    const { profile } = this.props;
-    const {success, result, message} = await client.call('create_room',{uid: profile.uid, user_limit: 2});
+    const { profile, gameId } = this.props;
+    const {success, result, message} = await client.call('create_room',{uid: profile.uid, game_id: gameId, user_limit: 2});
     this.profile = profile;
     this.room = result.room_id;
 
     if (success) {
       share.share({
         image: window.location.origin + '/bottle-flip.jpg',
-        url: window.location.origin + '/#/invite/' +  this.room,
+        url: window.location.origin + `/#/invite/${gameId}/${this.room}`,
         title: '这游戏真神，每天晚上不玩一下都睡不着觉！',
         content: '进来和我一决高下吧，来吧~'
       });
@@ -268,7 +264,7 @@ class CreateMatching extends Component {
       <GameName>跳一跳</GameName>
       <Profile>
         <Avatar/>
-        <UserName><NameText>{profile.username}</NameText> <Gender type="male"/></UserName>
+        <UserName><NameText>{profile.username}</NameText> <Gender number={profile.gender}/></UserName>
       </Profile>
       <Close onClick={this.cancel} />
     </Wrapper>;
@@ -286,8 +282,8 @@ class JoinMatching extends Component {
   }
 
   componentDidMount() {
-    const { profile, room } = this.props;
-    client.push('join_room', {room: room, uid: profile.uid});
+    const { profile, room, gameId } = this.props;
+    client.push('join_room', {room: room, uid: profile.uid, game_id: gameId});
   }
 
 
@@ -300,7 +296,7 @@ class JoinMatching extends Component {
       <GameName>跳一跳</GameName>
       <Profile>
         <Avatar/>
-        <UserName><NameText>{profile.username}</NameText> <Gender type="male"/></UserName>
+        <UserName><NameText>{profile.username}</NameText> <Gender number={profile.gender}/></UserName>
       </Profile>
       <Close onClick={this.cancel}/>
     </Wrapper>;
@@ -332,8 +328,15 @@ export default class Matching extends Component {
     //1. 自动匹配
     //2. 创建房间
     //3. 加入房间
+    const state = this.props.location.state;
+    
+    if (!state) {
+      return <Redirect to="/"/>
+    }
 
-    const { type, room } = this.props.location.state || {};
+    const { type, room, gameId } = state;
+
+
 
     if (this.state.matching) {
       return (
@@ -343,6 +346,7 @@ export default class Matching extends Component {
             const props = {
               profile,
               room,
+              gameId,
               onCancel: this.handleCancel
             }
             if (type === 'create') {

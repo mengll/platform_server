@@ -21,7 +21,7 @@ class Authorize extends Component {
         if (accessToken) {
             sessionStorage.setItem('accessToken', accessToken);
 
-            const {success, result} = await client.call('login', {access_token: accessToken, game_id: '1907'})
+            const {success, result} = await client.call('login', {access_token: accessToken})
             
             if (success) {
                 this.props.auth.update(result);

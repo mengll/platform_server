@@ -3,6 +3,8 @@ import styled from 'styled-components';
 
 import { Redirect, Link } from 'react-router-dom';
 
+import { AuthContext } from '../../context';
+
 import Badge from './badge';
 import Player from './player';
 
@@ -154,18 +156,24 @@ const BackButton = styled(Link).attrs({to: '/'})`
     margin-bottom: 5vw;
 `
 
-export default class Matching extends Component {
+class Matching extends Component {
   render() {
-    const params = this.props.location.state;
+    const {profile, params} = this.props;
     if (params) {
       return (
         <Wrapper>
-          <TopBadge type={params.result}/>
+          <TopBadge type={params.result} avatar={profile.avatar}/>
           <Profile>
               <Content>15 胜点</Content>
               <PlayerBox>
-                  <Player gender="male"/>
-                  <Player gender="female"/>
+                  {
+                    params.players.map(player => 
+                      <Player
+                        avatar={player.avatar}
+                        gender={player.gender}
+                      />
+                    )
+                  }
               </PlayerBox>
           </Profile>
           <ReplayButton>再来一局</ReplayButton>
@@ -175,5 +183,16 @@ export default class Matching extends Component {
     } else {
       return <Redirect to="/"/>
     }
+  }
+}
+
+export default class MatchingRoute extends Component {
+  render() {
+    const params = this.props.location.state;
+    return <AuthContext.Consumer>
+      {
+        ({profile}) => <Matching profile={profile} params={params}/>
+      }
+    </AuthContext.Consumer>;
   }
 }

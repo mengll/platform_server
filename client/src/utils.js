@@ -1,3 +1,6 @@
+import axios from 'axios';
+import qs from 'qs';
+
 export const Unit = option => {
     const _option = {
         divisor: 75,
@@ -24,3 +27,11 @@ export const env = {
     ANFENG_SDK_IOS: match('anfeng_mobile_ios_sdk'),
     IOS: match(/iphone|ipod|ipad/ig),
 }
+
+
+export const request = async (url, params) => {
+    const { data: {error_code: code = 500, data: payload = null, msg: message = null} } = await axios.post(url, qs.stringify(params));
+    return {code, payload, message, success: code == 0};
+}
+
+
