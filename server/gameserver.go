@@ -103,6 +103,7 @@ const (
 	DISCONNECT     = "af16"
 	ONLINE         = "af17"
 	USER_MESSAGE   = "af18"
+	ENTER_GAME	   = "af19"
 
 	ONLINE_KEY = "ONE_LINE:%s"
 )
@@ -177,26 +178,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		udat.Gender = strconv.Itoa(profile.Gender)
 		udat.Brithday = profile.Birthday
 
-		online_key := fmt.Sprintf(ONLINE_KEY,uid)
-		PfRedis.Expire(online_key,time.Second * 3000)
-
-		pg, pgerr := models.SaveLoginLog()
-
-		if pgerr == nil {
-			//uid , game_id , ts , ip, message_id , data
-			_, err := pg.Exec(uid, game_id, now_time,ws.RemoteAddr().String(), req_data.MessageId,MaptoJson(req_data.Data))
-
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-
-			if pg != nil {
-				pg.Close()
-			}
-		} else {
-			fmt.Println(pgerr.Error())
-		}
-
 		//保存玩家信息
 		saveUser,user_err := models.SaveUser()
 		if user_err == nil{
@@ -215,14 +196,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			fmt.Println(user_err.Error())
 		}
 
-		if _, ok := PlatFormUser[game_id]; !ok {
-			PlatFormUser[game_id] = make(map[string]*websocket.Conn)
-		}
-
-		PlatFormUser[game_id][uid] = ws
 		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE, udat.GameId)
-		login_num := PfRedis.getSetNum(login_key)
-
 		//保存用户登录信息
 		PfRedis.addSet(login_key, uid)
 
@@ -235,6 +209,52 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			PfRedis.setKey(fmt.Sprintf(USER_GAME_KEY, udat.Uid), b)
 		}
 
+		//返回登录
+		Res.ErrorCode = SUCESS_BACK
+		Res.Msg = ""
+		Res.Data = profile
+		ws.WriteJSON(Res)
+
+
+	//进入游戏是初始化信息
+	case ENTER_GAME:
+		game_id := req_data.Data["game_id"].(string)
+		uid,had_uid := req_data.Data["uid"].(string)
+		if !had_uid {
+		}
+
+		online_key := fmt.Sprintf(ONLINE_KEY,uid)
+		PfRedis.Expire(online_key,time.Second * 3000)
+		pg, pgerr := models.SaveLoginLog()
+
+		if pgerr == nil {
+			//uid , game_id , ts , ip, message_id , data
+			_, err := pg.Exec(uid, game_id, now_time,ws.RemoteAddr().String(), req_data.MessageId,MaptoJson(req_data.Data))
+
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+
+			if pg != nil {
+				pg.Close()
+			}
+		} else {
+			fmt.Println(pgerr.Error())
+			Res.ErrorCode = SUCESS_BACK
+			Res.Msg = pgerr.Error()
+			ws.WriteJSON(Res)
+			break
+		}
+
+		if _, ok := PlatFormUser[game_id]; !ok {
+			PlatFormUser[game_id] = make(map[string]*websocket.Conn)
+		}
+
+		PlatFormUser[game_id][uid] = ws
+
+		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE, game_id)
+		login_num := PfRedis.getSetNum(login_key)
+
 		back_dat := make(map[string]interface{})
 		back_dat["online_num"] = login_num + 1
 		back_dat["game_id"] = game_id
@@ -242,7 +262,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		//返回登录
 		Res.ErrorCode = SUCESS_BACK
 		Res.Msg = ""
-		Res.Data = profile
+		Res.Data = back_dat
 		ws.WriteJSON(Res)
 
 		//创建房间
@@ -337,7 +357,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 			for {
 				select {
-
 				case <-ctx.Done():
 					//PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid) //引出当前用户
 					Res.ErrorCode = FAILED_BACK
