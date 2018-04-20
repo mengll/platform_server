@@ -248,7 +248,7 @@ class Game extends Component {
       <Profile>
         <Surround/>
         <Avatar image={profile.avatar}/>
-        <Username>{profile.username}</Username>
+        <Username>{profile.nick_name}</Username>
         <Record>
           <span>总局数: {statics.play_num}</span>
           <span> 胜率: {statics.play_num > 0 ? Math.ceil(statics.win_num / statics.play_num * 100) : 100}%</span>

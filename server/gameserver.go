@@ -115,7 +115,7 @@ var (
 	}
 	//数据写入通道
 	WriteChannel chan map[*websocket.Conn]interface{} = make(chan map[*websocket.Conn]interface{})
-	UIDS        = make(map[*websocket.Conn]string)
+	UIDS                                              = make(map[*websocket.Conn]string)
 )
 
 func init() {
@@ -215,14 +215,14 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			break
 		}
 
-		fmt.Println("enter_game=>",game_id,uid)
+		fmt.Println("enter_game=>", game_id, uid)
 		//保存用户登录信息
 		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE, game_id)
 		login_num := PfRedis.getSetNum(login_key)
 		PfRedis.addSet(login_key, uid)
 
-		online_key := fmt.Sprintf(ONLINE_KEY,uid)
-		PfRedis.Expire(online_key,time.Second * 3000)
+		online_key := fmt.Sprintf(ONLINE_KEY, uid)
+		PfRedis.Expire(online_key, time.Second*3000)
 
 		pg, pgerr := models.SaveLoginLog()
 
@@ -250,7 +250,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		}
 		PlatFormUser[game_id][uid] = ws
 
-
 		back_dat := make(map[string]interface{})
 		back_dat["online_num"] = login_num + 1
 		back_dat["game_id"] = game_id
@@ -263,7 +262,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//创建房间
 	case CREATE_ROOM:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 
 		game_id := req_data.Data["game_id"].(string)
 		user_limit := int(req_data.Data["user_limit"].(float64))
@@ -284,7 +283,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//加入房间
 	case JOIN_ROOM:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 
 		game_id := req_data.Data["game_id"].(string)
 
@@ -329,7 +328,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//匹配玩家
 	case SEARCH_MATCH:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 
 		game_id := req_data.Data["game_id"].(string)
 		//ad:= fmt.Sprintf("%d",req_data.Data["user_limit"].(float64)) //游戏匹配的玩家的数量
@@ -398,7 +397,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		println("end")
 		//取消匹配
 	case JOIN_CANCEL:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 
 		game_id := req_data.Data["game_id"].(string)
 		PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
@@ -409,7 +408,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//退出玩家
 	case LOGOUT:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 
 		game_id := req_data.Data["game_id"].(string)
 		PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
@@ -440,7 +439,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//退出房间
 	case OUT_ROOM:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 
 		if _, ok := req_data.Data["room"]; !ok {
 			Res.ErrorCode = FAILED_BACK
@@ -463,7 +462,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		//信息传递
 	case ROOM_MESSAGE:
 
-		if _ ,ishad:= req_data.Data["game_id"].(string) ;!ishad{
+		if _, ishad := req_data.Data["game_id"].(string); !ishad {
 			Res.ErrorCode = FAILED_BACK
 			Res.Msg = "game_id is not found"
 			ws.WriteJSON(Res)
@@ -484,7 +483,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//断线重连
 	case RECONNECT:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 
 		game_id := req_data.Data["game_id"].(string)
 		if _, ok := req_data.Data["room"]; !ok {
@@ -514,7 +513,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//心跳
 	case GAME_HEART:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 		online_key := fmt.Sprintf(ONLINE_KEY, uid)
 		PfRedis.Expire(online_key, time.Second*3)
 		Res.ErrorCode = SUCESS_BACK
@@ -583,7 +582,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 					}
 					//todo 现在处理的2人数据后期添加多人数据比较需要优化 game_conf 后期保存到redis中
 					if (scores[0].Score - scores[1].Score) > 0 {
-						fmt.Println("【游戏结果播报】",scores,game_id)
+						fmt.Println("【游戏结果播报】", scores, game_id)
 						//game_id , play_num , win_num , uid , win_score
 						back_dat := make(map[string]string)
 						back_dat["result"] = "win"
@@ -610,7 +609,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 					}
 
 					if (scores[0].Score - scores[1].Score) == 0 {
-						fmt.Println("【游戏结果播报2】",scores)
+						fmt.Println("【游戏结果播报2】", scores)
 						back_dat := make(map[string]string)
 						back_dat["result"] = "draw"
 						back_dat["win_point"] = "0"
@@ -640,7 +639,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 	//user message
 	case USER_MESSAGE:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 		game_id := req_data.Data["game_id"].(string)
 		data := req_data.Data
 		err := PlatFormUser[game_id][uid].WriteJSON(data)

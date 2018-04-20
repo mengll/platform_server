@@ -221,7 +221,7 @@ class DefaultMatching extends Component {
       <GameName>跳一跳</GameName>
       <Profile>
         <Avatar image={profile.avatar}/>
-        <UserName><NameText>{profile.username}</NameText> <Gender number={profile.gender}/></UserName>
+        <UserName><NameText>{profile.nick_name}</NameText> <Gender number={profile.gender}/></UserName>
       </Profile>
       <Close onClick={this.cancel} />
     </Wrapper>;
@@ -264,7 +264,7 @@ class CreateMatching extends Component {
       <GameName>跳一跳</GameName>
       <Profile>
         <Avatar/>
-        <UserName><NameText>{profile.username}</NameText> <Gender number={profile.gender}/></UserName>
+        <UserName><NameText>{profile.nick_name}</NameText> <Gender number={profile.gender}/></UserName>
       </Profile>
       <Close onClick={this.cancel} />
     </Wrapper>;
@@ -296,7 +296,7 @@ class JoinMatching extends Component {
       <GameName>跳一跳</GameName>
       <Profile>
         <Avatar/>
-        <UserName><NameText>{profile.username}</NameText> <Gender number={profile.gender}/></UserName>
+        <UserName><NameText>{profile.nick_name}</NameText> <Gender number={profile.gender}/></UserName>
       </Profile>
       <Close onClick={this.cancel}/>
     </Wrapper>;

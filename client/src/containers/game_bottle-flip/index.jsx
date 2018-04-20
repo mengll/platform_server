@@ -39,7 +39,7 @@ class BottleFlipGame extends Component {
     const { profile, params } = this.props;
 
     const score = event.score;
-    client.call('room_message',  {room: params.room, data:{score, uid: profile.uid} })
+    client.call('room_message',  {room: params.room, game_id: gameId, data:{score, uid: profile.uid} })
     this.setState({
       mine: score
     })
