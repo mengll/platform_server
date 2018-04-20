@@ -15,8 +15,6 @@ import (
 	"github.com/labstack/echo"
 
 	"platform_server/libs/db"
-
-
 	"net/http"
 )
 
@@ -329,7 +327,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//匹配玩家
 	case SEARCH_MATCH:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := UIDS[ws]
 
 		game_id := req_data.Data["game_id"].(string)
 		//ad:= fmt.Sprintf("%d",req_data.Data["user_limit"].(float64)) //游戏匹配的玩家的数量
@@ -514,7 +512,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//心跳
 	case GAME_HEART:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := UIDS[ws]
 		online_key := fmt.Sprintf(ONLINE_KEY, uid)
 		PfRedis.Expire(online_key, time.Second*3)
 		Res.ErrorCode = SUCESS_BACK
@@ -555,10 +553,10 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		if user_limit > result_num {
 			addSet(res_key, "'"+Res.MessageId+"'")
-
+			result_num := getSetNum(res_key)
 			if result_num == user_limit {
 				//结果数据处理分发
-					rows, err := models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where room in(" + room + ") order by score desc ")
+					rows, err := models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where room in('" + room + "') order by score desc ")
 					if err != nil {
 						fmt.Println(err.Error())
 					}
