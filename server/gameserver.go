@@ -188,6 +188,11 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			}
 		} else {
 			fmt.Println(user_err.Error())
+			//返回登录
+			Res.ErrorCode = FAILED_BACK
+			Res.Msg = user_err.Error()
+			ws.WriteJSON(Res)
+			break
 		}
 
 		b, err := json.Marshal(udat) //格式化当前的数据信息
@@ -261,8 +266,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//创建房间
 	case CREATE_ROOM:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
 
+		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
 		game_id := req_data.Data["game_id"].(string)
 		user_limit := int(req_data.Data["user_limit"].(float64))
 		new_room := createRoom(game_id)
@@ -282,8 +287,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//加入房间
 	case JOIN_ROOM:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
-
+		//uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := UIDS[ws]
 		game_id := req_data.Data["game_id"].(string)
 
 		if _, ok := req_data.Data["room"]; !ok {
