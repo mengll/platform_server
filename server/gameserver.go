@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"platform_server/anfeng"
@@ -108,7 +109,7 @@ var (
 	PlatFormUser = make(map[string]map[string]*websocket.Conn) //在线的用户的信息
 	PfRedis      = NewRedis()                                  //平台redis
 	auth         = anfeng.Auth{
-		BaseURL:  "http://192.168.1.53:82",
+		BaseURL:  "http://i.anfeng.com",
 		ClientID: "101",
 	}
 	//数据写入通道
@@ -123,7 +124,7 @@ func init() {
 
 //检查当前的数据格式
 
-func Gs(ws *websocket.Conn, req_data *ReqDat) error {
+func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 	Res := ResponeDat{}
 	Res.MessageId = req_data.MessageId
 
@@ -143,7 +144,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 	switch req_data.Cmd {
 	case AUTHORIZE:
-		authorizeURL := auth.AuthorizeURL("http://localhost:1323/auth/callback", "STATE")
+		authorizeURL := auth.AuthorizeURL("http://"+c.Request().Host+"/auth/callback", "STATE")
 		data := make(map[string]interface{})
 		data["url"] = authorizeURL
 		Res.ErrorCode = SUCESS_BACK
@@ -643,8 +644,15 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 	case USER_MESSAGE:
 		uid := req_data.Data["uid"].(string)
 		game_id := req_data.Data["game_id"].(string)
-		data := req_data.Data
-		err := PlatFormUser[game_id][uid].WriteJSON(data)
+		data := req_data.Data["data"]
+
+		notify := ResponeDat{
+			ErrorCode: SUCESS_BACK,
+			Data:      data,
+			Msg:       USER_MESSAGE,
+		}
+
+		err := PlatFormUser[game_id][uid].WriteJSON(notify)
 		if err != nil {
 			Res.ErrorCode = FAILED_BACK
 			Res.Msg = err.Error()
@@ -660,11 +668,12 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 }
 
 func AuthCallback(c echo.Context) error {
-	accessToken, err := auth.AccessToken("http://localhost:1323/auth/callback", "STATE", c.QueryParam("code"))
+	accessToken, err := auth.AccessToken("http://"+c.Request().Host+"/auth/callback", "STATE", c.QueryParam("code"))
 	if err != nil {
 		return err
 	}
-	return c.Redirect(302, "http://localhost:3000/#/authorize/"+accessToken)
+
+	return c.Redirect(302, "http://"+strings.Split(c.Request().Host, ":")[0]+":3000/#/authorize/"+accessToken)
 }
 
 //发送广播

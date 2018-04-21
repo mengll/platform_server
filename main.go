@@ -9,9 +9,10 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo-contrib/session"
 
-	"github.com/labstack/echo/middleware"
 	"fmt"
 	"time"
+
+	"github.com/labstack/echo/middleware"
 )
 
 var (
@@ -23,14 +24,14 @@ var (
 	}
 )
 
-func WC(){
+func WC() {
 
-	for{
+	for {
 		select {
-		  case wsdat := <- server.WriteChannel:
-			  for ws,dat := range wsdat{
-				  ws.WriteJSON(dat)
-			  }
+		case wsdat := <-server.WriteChannel:
+			for ws, dat := range wsdat {
+				ws.WriteJSON(dat)
+			}
 		default:
 
 		}
@@ -38,7 +39,6 @@ func WC(){
 		time.Sleep(time.Microsecond)
 	}
 }
-
 
 func gameserver(c echo.Context) error {
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
@@ -57,12 +57,11 @@ GOB:
 			goto GOB
 		}
 
-		go server.Gs(ws, dat)
+		go server.Gs(ws, dat, c)
 	}
 
 	return nil
 }
-
 
 func main() {
 
@@ -76,8 +75,8 @@ func main() {
 	e.GET("/auth/callback", server.AuthCallback)
 
 	gv1 := e.Group("/v1/")
-	gv1.POST("user_game_result",server.UserGameResulta)
-	gv1.POST("game_result_list",server.GameResultList)
+	gv1.POST("user_game_result", server.UserGameResulta)
+	gv1.POST("game_result_list", server.GameResultList)
 	go WC()
 
 	e.Logger.Fatal(e.Start(":1323"))

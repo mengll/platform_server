@@ -3,10 +3,14 @@ import styled from 'styled-components';
 
 import { Redirect, Link } from 'react-router-dom';
 
+import { Toast } from 'antd-mobile';
+
 import { AuthContext } from '../../context';
 
 import Badge from './badge';
 import Player from './player';
+
+import client from '../../client';
 
 
 const Wrapper = styled.div`
@@ -158,13 +162,96 @@ const BackButton = styled(Link).attrs({to: '/'})`
 
 class Ending extends Component {
   
-  handleReplay = () => {
+  state = {
+    replay: null
+  }
+
+  master = null
+  uids = new Map()
+
+  handleReplay = async () => {
+    const {profile, params} = this.props;
+
+    if (profile.uid == this.master.uid) {
+      this.replayConfirm(profile.uid);
+    } else {
+      client.call('user_message', {
+        uid: this.master.uid,
+        game_id: params.game_id,
+        data: {
+          type: 'replay.confirm',
+          uid: profile.uid,
+          room: params.room,
+
+        }
+      })
+    }
+  }
+
+  handleUserMessage = data => {
+    const {profile, params} = this.props;
+    switch (data.type) {
+      case 'replay.confirm':
+        data.room == params.room && this.replayConfirm(data.uid);
+        break;
+      case 'replay.invite':
+        client.push('join_room', {room: data.room, uid: profile.uid, game_id: params.game_id});
+        break;
+    }
+  }
+
+  handleStart = data => {
+    this.setState({
+      replay: data
+    })
+  }
+
+  async replayConfirm(uid) {
+    const {profile, params} = this.props;
+
+    this.uids.set(uid, true);
     
+    
+    if (this.uids.size == params.players.length) {
+      const {success, result, message} = await client.call('create_room',{uid: profile.uid, game_id: params.game_id, user_limit: 2});
+      const invites = params.players
+        .filter(player => player.uid != profile.uid)
+        .map(player =>
+          client.call('user_message', {
+            uid: player.uid,
+            game_id: params.game_id,
+            data: {
+              type: 'replay.invite',
+              room: result.room_id,
+            }
+          })
+        )
+    }
+  }
+
+  componentDidMount() {
+    const {profile, params} = this.props;
+
+    this.master = params.players[0];
+
+    client.on('notify.user_message', this.handleUserMessage);
+    client.on('notify.start', this.handleStart);
+  }
+
+  componentWillUnmount() {
+    client.off('notify.user_message', this.handleUserMessage);
+    client.off('notify.start', this.handleStart);
   }
 
   render() {
     const {profile, params} = this.props;
-    if (params) {
+
+    if (params && this.state.replay) {
+      return <Redirect to={{
+          pathname: `/play/${params.game_id}`,
+          state: this.state.replay
+        }}/>
+    } else if (params) {
       return (
         <Wrapper>
           <TopBadge type={params.result} avatar={profile.avatar}/>
@@ -194,10 +281,14 @@ class Ending extends Component {
 export default class EndingRoute extends Component {
   render() {
     const params = this.props.location.state;
-    return <AuthContext.Consumer>
-      {
-        ({profile}) => <Ending profile={profile} params={params}/>
-      }
-    </AuthContext.Consumer>;
+    if (params) {
+        return <AuthContext.Consumer>
+          {
+            ({profile}) => <Ending profile={profile} params={params}/>
+          }
+        </AuthContext.Consumer>;
+    } else {
+      return <Redirect to="/" />
+    }
   }
 }

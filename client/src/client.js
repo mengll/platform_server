@@ -37,7 +37,8 @@ const routes = {
     game_result: 'af13',
     authorize: 'af14',
     online: 'af17',
-    enter_game: 'af19'
+    user_message: 'af18',
+    enter_game: 'af19',
 }
 
 const cmds = {
@@ -56,12 +57,13 @@ const cmds = {
     'af13': 'game_result',
     'af14': 'authorize',
     'af17': 'online',
-    'af19': 'enter_game'
+    'af18': 'user_message',
+    'af19': 'enter_game',
 }
 
 const game_id = "1998";
 class Client extends EventEmitter {
-    socket = new WebSocket('ws://localhost:1323/gameserver');
+    socket = new WebSocket(`ws://${window.location.host.split(':')[0]}:1323/gameserver`);
     pending = {}
     seq = 0;
 
