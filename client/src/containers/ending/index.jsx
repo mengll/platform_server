@@ -156,7 +156,12 @@ const BackButton = styled(Link).attrs({to: '/'})`
     margin-bottom: 5vw;
 `
 
-class Matching extends Component {
+class Ending extends Component {
+  
+  handleReplay = () => {
+    
+  }
+
   render() {
     const {profile, params} = this.props;
     if (params) {
@@ -164,7 +169,7 @@ class Matching extends Component {
         <Wrapper>
           <TopBadge type={params.result} avatar={profile.avatar}/>
           <Profile>
-              <Content>15 胜点</Content>
+              <Content>{params.win_point} 胜点</Content>
               <PlayerBox>
                   {
                     params.players.map(player => 
@@ -176,7 +181,7 @@ class Matching extends Component {
                   }
               </PlayerBox>
           </Profile>
-          <ReplayButton>再来一局</ReplayButton>
+          <ReplayButton onClick={this.handleReplay}>再来一局</ReplayButton>
           <BackButton>返回首页</BackButton>
         </Wrapper>
       );
@@ -186,12 +191,12 @@ class Matching extends Component {
   }
 }
 
-export default class MatchingRoute extends Component {
+export default class EndingRoute extends Component {
   render() {
     const params = this.props.location.state;
     return <AuthContext.Consumer>
       {
-        ({profile}) => <Matching profile={profile} params={params}/>
+        ({profile}) => <Ending profile={profile} params={params}/>
       }
     </AuthContext.Consumer>;
   }

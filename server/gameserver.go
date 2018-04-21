@@ -14,8 +14,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 
-	"platform_server/libs/db"
 	"net/http"
+	"platform_server/libs/db"
 )
 
 type (
@@ -188,6 +188,11 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			}
 		} else {
 			fmt.Println(user_err.Error())
+			//返回登录
+			Res.ErrorCode = FAILED_BACK
+			Res.Msg = user_err.Error()
+			ws.WriteJSON(Res)
+			break
 		}
 
 		b, err := json.Marshal(udat) //格式化当前的数据信息
@@ -281,8 +286,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//加入房间
 	case JOIN_ROOM:
-		uid := req_data.Data["uid"].(string)
-
+		uid := UIDS[ws]
 		game_id := req_data.Data["game_id"].(string)
 
 		if _, ok := req_data.Data["room"]; !ok {
@@ -555,82 +559,82 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			result_num := getSetNum(res_key)
 			if result_num == user_limit {
 				//结果数据处理分发
-					rows, err := models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where room in('" + room + "') order by score desc ")
-					if err != nil {
-						fmt.Println(err.Error())
-					}
+				rows, err := models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where room in('" + room + "') order by score desc ")
+				if err != nil {
+					fmt.Println(err.Error())
+				}
 
-					scores := []Gmresult{}
-					for rows.Next() {
-						res_dat := Gmresult{}
-						uid := ""
-						game_id := ""
-						score := 0
-						message_id := ""
-						rows.Scan(&uid, &score, &game_id, &message_id)
-						res_dat.MessageID = message_id
-						res_dat.Uid = uid
-						res_dat.GameId = game_id
-						res_dat.Score = score
-						scores = append(scores, res_dat)
-					}
-					save_score, s_err := models.SaveWinScore()
-					if s_err != nil {
-						fmt.Println(s_err.Error())
-					}
-					//todo 现在处理的2人数据后期添加多人数据比较需要优化 game_conf 后期保存到redis中
-					if (scores[0].Score - scores[1].Score) > 0 {
-						fmt.Println("【游戏结果播报】", scores, game_id)
-						//game_id , play_num , win_num , uid , win_score
-						back_dat := make(map[string]string)
-						back_dat["result"] = "win"
-						back_dat["win_point"] = "15"
-						Res.Data = back_dat
-						Res.MessageId = scores[0].MessageID
+				scores := []Gmresult{}
+				for rows.Next() {
+					res_dat := Gmresult{}
+					uid := ""
+					game_id := ""
+					score := 0
+					message_id := ""
+					rows.Scan(&uid, &score, &game_id, &message_id)
+					res_dat.MessageID = message_id
+					res_dat.Uid = uid
+					res_dat.GameId = game_id
+					res_dat.Score = score
+					scores = append(scores, res_dat)
+				}
+				save_score, s_err := models.SaveWinScore()
+				if s_err != nil {
+					fmt.Println(s_err.Error())
+				}
+				//todo 现在处理的2人数据后期添加多人数据比较需要优化 game_conf 后期保存到redis中
+				if (scores[0].Score - scores[1].Score) > 0 {
+					fmt.Println("【游戏结果播报】", scores, game_id)
+					//game_id , play_num , win_num , uid , win_score
+					back_dat := make(map[string]string)
+					back_dat["result"] = "win"
+					back_dat["win_point"] = "15"
+					Res.Data = back_dat
+					Res.MessageId = scores[0].MessageID
 
-						con := PlatFormUser[scores[0].GameId][scores[0].Uid]
-						mp := make(map[*websocket.Conn]interface{})
-						mp[con] = Res
-						//game_id , play_num , win_num , uid , win_score
-						save_score.Exec(game_id, 1, 1, scores[0].Uid, 15)
-						WriteChannel <- mp
+					con := PlatFormUser[scores[0].GameId][scores[0].Uid]
+					mp := make(map[*websocket.Conn]interface{})
+					mp[con] = Res
+					//game_id , play_num , win_num , uid , win_score
+					save_score.Exec(game_id, 1, 1, scores[0].Uid, 15)
+					WriteChannel <- mp
 
-						back_dat["result"] = "lose"
-						back_dat["win_point"] = "0"
-						Res.Data = back_dat
-						Res.MessageId = scores[1].MessageID
-						con = PlatFormUser[scores[1].GameId][scores[1].Uid]
-						mp[con] = Res
-						save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
-						WriteChannel <- mp
+					back_dat["result"] = "lose"
+					back_dat["win_point"] = "0"
+					Res.Data = back_dat
+					Res.MessageId = scores[1].MessageID
+					con = PlatFormUser[scores[1].GameId][scores[1].Uid]
+					mp[con] = Res
+					save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
+					WriteChannel <- mp
 
-					}
+				}
 
-					if (scores[0].Score - scores[1].Score) == 0 {
-						fmt.Println("【游戏结果播报2】", scores)
-						back_dat := make(map[string]string)
-						back_dat["result"] = "draw"
-						back_dat["win_point"] = "0"
-						Res.Data = back_dat
-						Res.MessageId = scores[0].MessageID
-						fmt.Println(scores[0].GameId, scores[0].Uid)
-						con := PlatFormUser[scores[0].GameId][scores[0].Uid]
-						mp := make(map[*websocket.Conn]interface{})
-						mp[con] = Res
-						save_score.Exec(game_id, 1, 0, scores[0].Uid, 0)
-						WriteChannel <- mp
+				if (scores[0].Score - scores[1].Score) == 0 {
+					fmt.Println("【游戏结果播报2】", scores)
+					back_dat := make(map[string]string)
+					back_dat["result"] = "draw"
+					back_dat["win_point"] = "0"
+					Res.Data = back_dat
+					Res.MessageId = scores[0].MessageID
+					fmt.Println(scores[0].GameId, scores[0].Uid)
+					con := PlatFormUser[scores[0].GameId][scores[0].Uid]
+					mp := make(map[*websocket.Conn]interface{})
+					mp[con] = Res
+					save_score.Exec(game_id, 1, 0, scores[0].Uid, 0)
+					WriteChannel <- mp
 
-						back_dat["result"] = "draw"
-						back_dat["win_point"] = "0"
-						Res.Data = back_dat
-						Res.MessageId = scores[1].MessageID
-						con = PlatFormUser[scores[1].GameId][scores[1].Uid]
-						mp[con] = Res
-						save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
-						WriteChannel <- mp
+					back_dat["result"] = "draw"
+					back_dat["win_point"] = "0"
+					Res.Data = back_dat
+					Res.MessageId = scores[1].MessageID
+					con = PlatFormUser[scores[1].GameId][scores[1].Uid]
+					mp[con] = Res
+					save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
+					WriteChannel <- mp
 
-					}
-					defer save_score.Close()
+				}
+				defer save_score.Close()
 
 			}
 		}

@@ -62,7 +62,7 @@ func SaveWinScore() (*sql.Stmt,error){
 		return nil,err
 	}
 	run_sql := "insert into gp_user_game_info (game_id , play_num , win_num , uid , win_point) values " +
-		"($1,$2,$3,$4,$5) ON CONFLICT (uid,game_id) DO UPDATE set  play_num =  excluded.play_num +1,win_num = gp_user_game_info.win_num + excluded.win_num,win_point = gp_user_game_info.win_point + excluded.win_point"
+		"($1,$2,$3,$4,$5) ON CONFLICT (uid,game_id) DO UPDATE set  play_num =  gp_user_game_info.play_num +1,win_num = gp_user_game_info.win_num + excluded.win_num,win_point = gp_user_game_info.win_point + excluded.win_point"
 
 	return Pg.Prepure(run_sql)
 }
