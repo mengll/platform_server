@@ -770,7 +770,8 @@ export default class Game extends THREE.EventDispatcher {
   }
 
 
-  start() {
+  start(seed = 0) {
+    this.resestRandom(seed);
     this.pause = false;
     this.render();
     requestAnimationFrame(this.update);

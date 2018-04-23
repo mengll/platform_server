@@ -60,19 +60,20 @@ const cmds = {
     'af18': 'user_message',
     'af19': 'enter_game',
 }
-
-const game_id = "1998";
 class Client extends EventEmitter {
-    socket = new WebSocket(`ws://${window.location.host.split(':')[0]}:1323/gameserver`);
+    url = `ws://${window.location.host.split(':')[0]}:1323/gameserver`
+    socket = null;
     pending = {}
     seq = 0;
 
-    _connected = false;
 
     constructor() {
         super();
+        
+    }
 
-        this.socket.onmessage = (event) => {
+    handleMessage = (event) => {
+        try {
             const pack = JSON.parse(event.data);
 
             const { error_code, data, msg, message_id: seq } = pack;
@@ -105,12 +106,20 @@ class Client extends EventEmitter {
                     }
                 }
             }
+        } catch (error) {
+            console.log('client.error.parse', error)
         }
+    }
 
-        this.socket.addEventListener('open', () => {
-            this._connected = true;
-        })
+    createSocket() {
+        let socket = null;
+        try {
+            socket = new WebSocket(this.url);
+        } catch (err) {
 
+        }
+        socket.onmessage = this.handleMessage;
+        return socket;
     }
 
     notify(event) {
@@ -120,12 +129,22 @@ class Client extends EventEmitter {
     }
 
     async connected() {
-        if (this._connected) {
+        if (this.socket == null) {
+            this.socket = this.createSocket();
+        }
+        if (this.socket.readyState == WebSocket.OPEN) {
             return;
         } else {
-            return new Promise(resolve => {
+            return new Promise((resolve) => {
+                if (this.socket.readyState != WebSocket.CONNECTING) {
+                    this.socket = this.createSocket();
+                    console.log('client.connect');
+                }
                 this.socket.addEventListener('open', () => {
                     resolve();
+                })
+                this.socket.addEventListener('error', () => {
+                    this.connected().then(resolve);
                 })
             })
         }

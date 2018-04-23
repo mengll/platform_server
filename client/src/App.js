@@ -15,7 +15,8 @@ import Play from './containers/play/';
 import BottleFlipGame from './containers/game_bottle-flip/';
 import Authorize from './containers/authorize/';
 import Invite from './containers/invite/';
-
+import Ranking from './containers/ranking/';
+import Rule from './containers/rule/';
 
 import client from './client';
 
@@ -63,11 +64,13 @@ class App extends Component {
             <React.Fragment>
               <Route path="/authorize/:accessToken?" component={Authorize}/>
               <Route exact path="/" render={() => <Redirect to="/game/bottle-flip"/>}/>
-              <AuthRoute exact path="/game/:gameId" component={Game}/>
+              <AuthRoute path="/game/:gameId" component={Game}/>
+              <AuthRoute exact path="/game/:gameId/rule" component={Rule}/>
               <AuthRoute exact path="/matching" component={Matching}/>
               <AuthRoute exact path="/ending" component={Ending}/>
               <AuthRoute exact path="/play/bottle-flip" component={BottleFlipGame}/>
-              <AuthRoute path="/invite/:gameId/:roomId" component={Invite}/>
+              <AuthRoute exact path="/invite/:gameId/:roomId" component={Invite}/>
+              <AuthRoute exact path="/ranking/:gameId" component={Ranking}/>
             </React.Fragment>
         </Router>
 

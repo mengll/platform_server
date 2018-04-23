@@ -60,7 +60,7 @@ const Description = styled.div`
   line-height: 2.67vw;
 `
 
-const RuleLink = styled.a`
+const RuleLink = styled(Link)`
   position: absolute;
   right: 3vw;
   top: 9vw;
@@ -139,8 +139,9 @@ const Record = styled.div`
   text-align: center;
 `
 
-const Ranking = styled.div`
+const Ranking = styled(Link)`
   position: relative;
+  display: block;
 
   box-sizing: border-box;
 
@@ -159,7 +160,7 @@ const Text = styled.div`
   line-height: 4vw;
 `
 
-const RankingLink = styled.a`
+const RankingLink = styled.div`
   position: absolute;
   right: 3vw;
   top: 4vw;
@@ -243,7 +244,7 @@ class Game extends Component {
         <Icon/>
         <Title>跳一跳</Title>
         <Description>{this.state.online_num}人在玩</Description>
-        <RuleLink>玩法规则 &gt;</RuleLink>
+        <RuleLink to={`/game/${gameId}/rule`}>玩法规则 &gt;</RuleLink>
       </Header>
       <Profile>
         <Surround/>
@@ -254,7 +255,7 @@ class Game extends Component {
           <span> 胜率: {statics.play_num > 0 ? Math.ceil(statics.win_num / statics.play_num * 100) : 100}%</span>
         </Record>
       </Profile>
-      <Ranking>
+      <Ranking to={`/ranking/${gameId}`}>
         <Text>查看排行榜</Text>
         <RankingLink>胜点：{statics.win_point} &gt;</RankingLink>
       </Ranking>

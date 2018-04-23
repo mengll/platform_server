@@ -1,13 +1,43 @@
 import React, { Component } from 'react';
 
+import styled from 'styled-components';
+
 import { Redirect } from 'react-router-dom';
 
 import BottleFlip from './game';
 
+import Player from './player';
+import ScoreBoard from './score-board';
+
+
 import client from  '../../client';
 import { AuthContext } from '../../context';
 
+import { vw } from '../../utils';
+
+
 const gameId = 'bottle-flip';
+
+
+const Mine = styled(Player).attrs({mine: true})`
+  position: absolute;
+  left: 0;
+  top: 0;
+`
+
+const Opponent = styled(Player).attrs({mine: false})`
+  position: absolute;
+  right: 0;
+  top: 0;
+`;
+
+
+const UI = styled.div`
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+`
 
 class BottleFlipGame extends Component {
 
@@ -79,7 +109,7 @@ class BottleFlipGame extends Component {
   }
 
   componentDidMount() {
-    this.game.start();
+    this.game.start(Math.random() * 10000);
     this.wrapper.current.appendChild(this.game.renderer.domElement);
     this.timer = setInterval(this.handleTick, 1000);
     this.game.addEventListener('score', this.handleGameScore)
@@ -96,20 +126,16 @@ class BottleFlipGame extends Component {
   }
 
   render() {
+    const { profile, params } = this.props;
+    const players = params.info,
+          opponent = players.filter(p => p.uid != profile.uid)[0]
     return <div>
       <div style={{ width: '100vw', height: '100vh' }} ref={this.wrapper}></div>
-      <div style={{
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        height: '10vh',
-        lineHeight: '10vh',
-        backgroundColor: 'rgba(0,0,0,0.2)',
-        color: '#fff',
-        textAlign: 'center',
-        fontSize: '4vw',
-      }}>{this.state.mine} - [{this.state.countdown}] - {this.state.opponent}</div>
+      <UI>
+        <ScoreBoard mine={this.state.mine} opponent={this.state.opponent} time={this.state.countdown}/>
+        <Mine name={profile.nick_name} avatar={profile.avatar}/>
+        <Opponent name={opponent.nick_name} avatar={opponent.avatar}/>
+      </UI>
     </div>;
   }
 }

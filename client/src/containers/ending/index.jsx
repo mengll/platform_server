@@ -163,7 +163,15 @@ const BackButton = styled(Link).attrs({to: '/'})`
 class Ending extends Component {
   
   state = {
-    replay: null
+    replay: null,
+    ready: {
+      mine: false,
+      opponent: false,
+    },
+    exit: {
+      mine: false,
+      opponent: false,
+    }
   }
 
   master = null
@@ -172,20 +180,47 @@ class Ending extends Component {
   handleReplay = async () => {
     const {profile, params} = this.props;
 
-    if (profile.uid == this.master.uid) {
-      this.replayConfirm(profile.uid);
-    } else {
-      client.call('user_message', {
-        uid: this.master.uid,
-        game_id: params.game_id,
-        data: {
-          type: 'replay.confirm',
-          uid: profile.uid,
-          room: params.room,
 
-        }
-      })
-    }
+    this.replayConfirm(profile.uid);
+
+    const promises = params.players
+      .filter(player => player.uid != profile.uid)
+      .map(player =>
+        client.call('user_message', {
+          uid: player.uid,
+          game_id: params.game_id,
+          data: {
+            type: 'replay.confirm',
+            uid: profile.uid,
+            room: params.room,
+          }
+        })
+      )
+
+    await Promise.all(promises);
+    
+  }
+
+  handleExit = async () => {
+    const {profile, params} = this.props;
+
+    this.replayExit(profile.uid);
+
+    const promises = params.players
+      .filter(player => player.uid != profile.uid)
+      .map(player =>
+        client.call('user_message', {
+          uid: player.uid,
+          game_id: params.game_id,
+          data: {
+            type: 'replay.exit',
+            uid: profile.uid,
+            room: params.room,
+          }
+        })
+      )
+
+    await Promise.all(promises);
   }
 
   handleUserMessage = data => {
@@ -193,6 +228,9 @@ class Ending extends Component {
     switch (data.type) {
       case 'replay.confirm':
         data.room == params.room && this.replayConfirm(data.uid);
+        break;
+      case 'replay.exit':
+        data.room == params.room && this.replayExit(data.uid);
         break;
       case 'replay.invite':
         client.push('join_room', {room: data.room, uid: profile.uid, game_id: params.game_id});
@@ -206,26 +244,51 @@ class Ending extends Component {
     })
   }
 
+  async replayExit(uid) {
+    const {profile, params} = this.props;
+    
+    if (profile.uid == uid) {
+      this.setState({
+        exit: {...this.state.exit, mine: true}
+      });
+    } else {
+      this.setState({
+        exit: {...this.state.exit, opponent: true}
+      });
+    }
+  }
+
   async replayConfirm(uid) {
     const {profile, params} = this.props;
 
-    this.uids.set(uid, true);
+    if(profile.uid == this.master.uid ) {
+      this.uids.set(uid, true);
     
-    
-    if (this.uids.size == params.players.length) {
-      const {success, result, message} = await client.call('create_room',{uid: profile.uid, game_id: params.game_id, user_limit: 2});
-      const invites = params.players
-        .filter(player => player.uid != profile.uid)
-        .map(player =>
-          client.call('user_message', {
-            uid: player.uid,
-            game_id: params.game_id,
-            data: {
-              type: 'replay.invite',
-              room: result.room_id,
-            }
-          })
-        )
+      if (this.uids.size == params.players.length) {
+        const {success, result, message} = await client.call('create_room',{uid: profile.uid, game_id: params.game_id, user_limit: 2});
+        const invites = params.players
+          .filter(player => player.uid != profile.uid)
+          .map(player =>
+            client.call('user_message', {
+              uid: player.uid,
+              game_id: params.game_id,
+              data: {
+                type: 'replay.invite',
+                room: result.room_id,
+              }
+            })
+          )
+      }
+    }
+
+    if (profile.uid == uid) {
+      this.setState({
+        ready: {...this.state.ready, mine: true}
+      });
+    } else {
+      this.setState({
+        ready: {...this.state.ready, opponent: true}
+      });
     }
   }
 
@@ -243,6 +306,21 @@ class Ending extends Component {
     client.off('notify.start', this.handleStart);
   }
 
+  getRepay() {
+    const {ready, exit} = this.state;
+    if (exit.opponent) {
+      return {enabled: false, text: '对方已经离开'};
+    } else if (ready.mine && ready.opponent) {
+      return {enabled: false, text: '即将开局'};
+    } else if (ready.mine) {
+      return {enabled: false, text: '等待对方接受'};
+    } else if (ready.opponent) {
+      return {enabled: true, text: '对方请求再战'};
+    } else {
+      return {enabled: true, text: '再来一局'};
+    }
+  }
+
   render() {
     const {profile, params} = this.props;
 
@@ -252,6 +330,7 @@ class Ending extends Component {
           state: this.state.replay
         }}/>
     } else if (params) {
+      const {enabled, text} = this.getRepay();
       return (
         <Wrapper>
           <TopBadge type={params.result} avatar={profile.avatar}/>
@@ -268,8 +347,8 @@ class Ending extends Component {
                   }
               </PlayerBox>
           </Profile>
-          <ReplayButton onClick={this.handleReplay}>再来一局</ReplayButton>
-          <BackButton>返回首页</BackButton>
+          <ReplayButton onClick={enabled ? this.handleReplay : () => {}}>{text}</ReplayButton>
+          <BackButton onClick={this.handleExit}>返回首页</BackButton>
         </Wrapper>
       );
     } else {
