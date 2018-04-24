@@ -110,7 +110,7 @@ func (this *GsRedisManage) EXISTS(k string) (bool, error) {
 		println("jjkknn")
 		return true, nil
 	}
-	
+
 	return false,nil
 
 }

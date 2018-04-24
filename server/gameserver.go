@@ -258,7 +258,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 		PlatFormUser[game_id][uid] = ws
 
 		back_dat := make(map[string]interface{})
-		back_dat["online_num"] = login_num
+		back_dat["online_num"] = PfRedis.getSetNum(login_key)
 		back_dat["game_id"] = game_id
 
 		//返回登录
