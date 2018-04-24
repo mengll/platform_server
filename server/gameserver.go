@@ -225,7 +225,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 		fmt.Println("enter_game=>", game_id, uid)
 		//保存用户登录信息
 		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE, game_id)
-		login_num := PfRedis.getSetNum(login_key)
 		PfRedis.addSet(login_key, uid)
 
 		online_key := fmt.Sprintf(ONLINE_KEY, uid)
@@ -291,7 +290,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 	case JOIN_ROOM:
 		uid := UIDS[ws]
 		game_id := req_data.Data["game_id"].(string)
-
+		fmt.Println("join_room_message =>",req_data.Data["room"])
 		if _, ok := req_data.Data["room"]; !ok {
 			Res.ErrorCode = FAILED_BACK
 			Res.Msg = "room not found"
@@ -518,6 +517,9 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 		//心跳
 	case GAME_HEART:
 		uid := UIDS[ws]
+		if uid == "" {
+			break
+		}
 		online_key := fmt.Sprintf(ONLINE_KEY, uid)
 		PfRedis.Expire(online_key, time.Second*3)
 		Res.ErrorCode = SUCESS_BACK
