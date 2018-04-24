@@ -357,10 +357,12 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 			for {
 				select {
 				case <-ctx.Done():
-					//PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid) //引出当前用户
+					PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid) //引出当前用户
 					Res.ErrorCode = FAILED_BACK
+					Res.Data = map[string]interface{}{"cmd": "time_out"}
 					Res.Msg = TIME_OUT
 					ws.WriteJSON(Res)
+					fmt.Println("search man time out")
 					goto TOBE
 
 				default:
@@ -396,6 +398,21 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 					}
 				}
 			}
+		}else{
+			for {
+				select {
+				case <-ctx.Done():
+					PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid) //引出当前用户
+					Res.ErrorCode = FAILED_BACK
+					Res.Data = map[string]interface{}{"cmd": "time_out"}
+					Res.Msg = TIME_OUT
+					ws.WriteJSON(Res)
+					fmt.Println("search man time out")
+					goto TOBE
+				default:
+					time.Sleep(time.Microsecond)
+				}
+				}
 		}
 	TOBE:
 		println("end")
