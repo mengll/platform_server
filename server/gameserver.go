@@ -345,7 +345,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 		PfRedis.addSet(gameReady, uid)
 		//todo 需要完善
 		//设置超时时间
-		ctx, _ := context.WithTimeout(context.Background(), time.Second*60)
+		ctx, _ := context.WithTimeout(context.Background(), time.Second*30)
 
 		//获取当前转呗的玩家的数量
 		reday_num := PfRedis.getSetNum(gameReady)
