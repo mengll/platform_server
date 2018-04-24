@@ -349,8 +349,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 
 		//获取当前转呗的玩家的数量
 		reday_num := PfRedis.getSetNum(gameReady)
-		println("room_limit-->", room_limit)
-		println("game_reday", reday_num, room_limit)
 
 		if reday_num >= room_limit {
 
@@ -551,16 +549,15 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 		res_key := fmt.Sprintf(ROOM_RESULT_KEY, room)
 		user_limit := getSetNum(room)
 		result_num := getSetNum(res_key)
-		data := req_data.Data
-		fmt.Println(req_data.Data)
+
 		score := strconv.Itoa(int(req_data.Data["value"].(float64)))
 		text := req_data.Data["text"].(string)
 		extra := req_data.Data["extra"].(map[string]interface{})
-		println(data)
 		pg, err := models.SaveResult()
 		if err != nil {
 			return err
 		}
+
 		game_id := req_data.Data["game_id"].(string)
 		//game_id , uid , score , text ,extra ,room ,ts,message_id
 		_, pg_err := pg.Exec(game_id, uid, score, text, MaptoJson(extra), room, now_time, Res.MessageId)
@@ -613,21 +610,24 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 					Res.Data = back_dat
 					Res.MessageId = scores[0].MessageID
 
-					con := PlatFormUser[scores[0].GameId][scores[0].Uid]
+					con_win := PlatFormUser[scores[0].GameId][scores[0].Uid]
 					mp := make(map[*websocket.Conn]interface{})
-					mp[con] = Res
+					mp[con_win] = Res
 					//game_id , play_num , win_num , uid , win_score
 					save_score.Exec(game_id, 1, 1, scores[0].Uid, 15)
+					fmt.Printf("game_win => %v \n",mp)
 					WriteChannel <- mp
 
 					back_dat["result"] = "lose"
 					back_dat["win_point"] = "0"
 					Res.Data = back_dat
 					Res.MessageId = scores[1].MessageID
-					con = PlatFormUser[scores[1].GameId][scores[1].Uid]
-					mp[con] = Res
+					con_lose := PlatFormUser[scores[1].GameId][scores[1].Uid]
+					mp_lose := make(map[*websocket.Conn]interface{})
+					mp_lose[con_lose] = Res
+					fmt.Printf("game_lose => %v \n",mp_lose)
 					save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
-					WriteChannel <- mp
+					WriteChannel <- mp_lose
 
 				}
 
@@ -698,21 +698,18 @@ func AuthCallback(c echo.Context) error {
 
 //发送广播
 func BroadCast(c_room string, game_id string, data interface{}) error {
-	fmt.Println("调用广播")
-	fmt.Println(c_room)
 	c_data, err := PfRedis.SMembers(c_room)
 	if err != nil {
 		return err
 	}
-	fmt.Println(game_id)
+
 	if _, ok := PlatFormUser[game_id]; ok {
 		//给房间内的所用玩家同步信息
 		for _, v := range c_data {
-			fmt.Println("--bt->", v)
 			if con, oo := PlatFormUser[game_id][v]; oo {
 				Res := ResponeDat{}
 				Res.ErrorCode = SUCESS_BACK
-				println("123->")
+
 				switch data.(type) {
 				case string:
 					room_message := []map[string]interface{}{}
@@ -727,7 +724,6 @@ func BroadCast(c_room string, game_id string, data interface{}) error {
 					Res.Data = back_data
 					Res.Msg = START
 
-					fmt.Println(room_message)
 				case map[string]interface{}:
 					Res.Data = data.(map[string]interface{})
 					Res.Msg = ROOM_MESSAGE
@@ -804,7 +800,6 @@ func ClearnDisconnect() {
 	for {
 		select {
 		case <-interval_clearn.C:
-			fmt.Println("clear user")
 			for game_id, v := range PlatFormUser {
 				for uid, _ := range v {
 					ClearUser(game_id,uid) //清除用户信息
@@ -838,7 +833,6 @@ func UserGameResulta(c echo.Context) error {
 	game_id := vals.Get("game_id")
 	userres := UserGameResult{}
 	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = '%s' and o.uid = '%s'"
-	fmt.Println(fmt.Sprintf(runsql, game_id, uid))
 
 	row := models.Pg.(*db.Pg).Db.QueryRow(fmt.Sprintf(runsql, game_id, uid))
 	err = row.Scan(&userres.NickName, &userres.Avatar, &userres.PlayNum, &userres.WinNum, &userres.WinPoint)

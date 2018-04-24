@@ -48,7 +48,7 @@ func gameserver(c echo.Context) error {
 
 	fmt.Println("every time run here") //每次新的用户运行这个
 
-GOB:
+
 	for {
 		dat := &server.ReqDat{}
 		err := ws.ReadJSON(dat) //阻塞
@@ -59,6 +59,8 @@ GOB:
 
 		go server.Gs(ws, dat, c)
 	}
+
+	GOB:
 
 	return nil
 }

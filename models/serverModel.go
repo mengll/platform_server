@@ -51,7 +51,7 @@ func SaveUser() (*sql.Stmt,error){
 		return nil,err
 	}
 	run_sql := "insert into gp_users (uid , nick_name , avatar , birth_day , gender  , ts , ip) values " +
-		"($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (uid) DO UPDATE set nick_name = excluded.nick_name"
+		"($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (uid) DO UPDATE set nick_name = excluded.nick_name,gender = excluded.gender"
 	return Pg.Prepure(run_sql)
 }
 
