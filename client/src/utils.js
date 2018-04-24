@@ -11,7 +11,7 @@ export const Unit = option => {
     option = Object.assign({}, _option, option)
 
     return x => {
-        return parseFloat((x / option.unit).toFixed(option.precision)).toString() + option.unit
+        return parseFloat((x / option.divisor).toFixed(option.precision)).toString() + option.unit
     }
 }
 

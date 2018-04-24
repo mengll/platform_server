@@ -26,112 +26,138 @@ const Tips = styled.div`
     background-size: cover;
 `;
 
+// class WeixinShare extends Component {
+//     static jssdk = new Promise(async resolve => {
+//         // const params = await request('/index.php?d=api&c=wechat&m=jssdk', {url: window.location.href });
+//         // wx.config({
+//         //     debug: false,
+//         //     appId: params.appId, // 必填，公众号的唯一标识
+//         //     timestamp: params.timestamp, // 必填，生成签名的时间戳
+//         //     nonceStr: params.nonceStr, // 必填，生成签名的随机串
+//         //     signature: params.signature, // 必填，签名，见附录1
+//         //     jsApiList: [
+//         //         'checkJsApi', //判断当前客户端版本是否支持指定JS接口
+//         //         'onMenuShareTimeline', //分享给好友
+//         //         'onMenuShareAppMessage', //分享到朋友圈
+//         //         'onMenuShareQQ' //分享到QQ
+//         //     ]
+//         // });
+//         //wx.ready(resolve);
+//     })
+
+//     state = {
+//         visible: false,
+//     }
+
+//     container = document.createElement('div');
+    
+    
+//     componentWillMount() {
+//         const {wx} = window;
+//         const {title, content, image, url, onSuccess = () => {}} = this.props;
+//         WeixinShare.jssdk.then(() => {
+//             wx.onMenuShareTimeline({ //分享到朋友圈
+//                 title: title,
+//                 desc: content, // 分享描述
+//                 link: url,
+//                 imgUrl: image,
+//                 success: onSuccess
+//             });
+
+//             wx.onMenuShareAppMessage({ //分享到朋友
+//                 title: title, // 分享标题
+//                 desc: content, // 分享描述
+//                 link: url, // 分享链接
+//                 imgUrl: image, // 分享图标
+//                 success: onSuccess
+//             });
+//         });
+//         document.body.appendChild(this.container);
+//     }
+
+// }
+
 class WeixinShare extends Component {
-    static jssdk = new Promise(async resolve => {
-        // const params = await request('/index.php?d=api&c=wechat&m=jssdk', {url: window.location.href });
-        // wx.config({
-        //     debug: false,
-        //     appId: params.appId, // 必填，公众号的唯一标识
-        //     timestamp: params.timestamp, // 必填，生成签名的时间戳
-        //     nonceStr: params.nonceStr, // 必填，生成签名的随机串
-        //     signature: params.signature, // 必填，签名，见附录1
-        //     jsApiList: [
-        //         'checkJsApi', //判断当前客户端版本是否支持指定JS接口
-        //         'onMenuShareTimeline', //分享给好友
-        //         'onMenuShareAppMessage', //分享到朋友圈
-        //         'onMenuShareQQ' //分享到QQ
-        //     ]
-        // });
-        //wx.ready(resolve);
+    static jssdk = new Promise(resolve => {
+        resolve()
     })
 
-    state = {
-        visible: false,
-    }
+    static share = async (props) => {
+        console.log('share.weixin.await.start');
+        await WeixinShare.jssdk;
+        console.log('share.weixin.await.end');
 
-    container = document.createElement('div');
-    
-    
-    componentWillMount() {
-        const {wx} = window;
-        const {title, content, image, url, onSuccess = () => {}} = this.props;
-        WeixinShare.jssdk.then(() => {
-            wx.onMenuShareTimeline({ //分享到朋友圈
-                title: title,
-                desc: content, // 分享描述
-                link: url,
-                imgUrl: image,
-                success: onSuccess
-            });
+        const {
+            title,
+            content,
+            image,
+            url,
+            onSuccess = () => {},
+            onCancel= () => {}
+        } = props;
 
-            wx.onMenuShareAppMessage({ //分享到朋友
-                title: title, // 分享标题
-                desc: content, // 分享描述
-                link: url, // 分享链接
-                imgUrl: image, // 分享图标
-                success: onSuccess
-            });
+        wx.onMenuShareTimeline({ //分享到朋友圈
+            title: title,
+            desc: content, // 分享描述
+            link: url,
+            imgUrl: image,
+            success: onSuccess
         });
-        document.body.appendChild(this.container);
-    }
 
-    componentWillUnmount() {
-        document.body.removeChild(this.container);
-    }
-    
-    handleOpen = e => {
-        this.setState({visible: true});
-    }
+        wx.onMenuShareAppMessage({ //分享到朋友
+            title: title, // 分享标题
+            desc: content, // 分享描述
+            link: url, // 分享链接
+            imgUrl: image, // 分享图标
+            success: onSuccess
+        });
 
-    handleClose = e => {
-        e.stopPropagation();
-        this.setState({visible: false});
-    }
-
-    render() {
-
-        const children = (
-            <Overlay onClick={this.handleClose}>
-                <Tips/>
-            </Overlay>
-        )
-
-        return (
-            <div {...this.props} onClick={this.handleOpen}>
-                <Fragment>
-                    {
-                        this.props.children
-                    }
-                    {
-                        this.state.visible ? ReactDOM.createPortal(children, this.container) : null
-                    }
-                </Fragment>
-            </div>
-        )
+        return <Overlay onClick={onCancel}>
+            <Tips/>
+        </Overlay>
     }
 }
 
-const BrowserShare = (props) => {
-    console.log(props);
-    Toast.info('浏览器无法分享');
+class BrowserShare extends Component {
+    static share = async (props) => {
+        Toast.info('浏览器无法分享');
+        console.log(props)
+        return null;
+    }
 }
 
-const AnfengGameShare = (props) => {
-    const {title, content, image, url} = this.props;
-    const data = {
-        title,
-        content,
-        img: image,
-        url,
-        ext: { hack: 'NOT_EMPTY' }
+class AnfengGameShare extends Component {
+    static share = async (props) => {
+        const {title, content, image, url} = this.props;
+        const data = {
+            title,
+            content,
+            img: image,
+            url,
+            ext: { hack: 'NOT_EMPTY' }
+        }
+        window.anfeng.share(JSON.stringify(data))
+        return null;
     }
-    return window.anfeng.share(JSON.stringify(data))
 }
+
 
 class Share extends Component {
-    
-    share(props) {
-      return this.shareFunc()(props);  
+    state = {
+        children: null
+    }
+
+    async share(props) {
+        console.log('share.start');
+      const children = await this.shareFunc().share({...props, onCancel:() => {
+          this.setState({
+              children: null
+          })
+      }})
+      console.log('share', children);
+      this.setState({
+          children
+      })
     }
 
     shareFunc() {
@@ -143,7 +169,7 @@ class Share extends Component {
     }
 
     render() {
-        return null;
+        return this.state.children;
     }
 }
 

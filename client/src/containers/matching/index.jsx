@@ -6,7 +6,10 @@ import share from '../../components/share/';
 
 import { Redirect } from 'react-router-dom';
 
+import { Toast } from 'antd-mobile';
+
 import { AuthContext } from '../../context';
+
 
 import Gender from '../../components/gender/';
 
@@ -172,6 +175,13 @@ const Close = styled.div`
   background-size: cover;
 `
 
+
+const loading = (operate, content = '..') => async () => {
+  Toast.loading(content, 0);
+  await operate();
+  Toast.hide();
+}
+
 class WatingTime extends Component {
   timer = null;
   
@@ -212,6 +222,8 @@ class DefaultMatching extends Component {
     }
   }
 
+  handleCancel = loading(this.cancel)
+
   render() {
     const { profile } = this.props;
 
@@ -221,9 +233,9 @@ class DefaultMatching extends Component {
       <GameName>跳一跳</GameName>
       <Profile>
         <Avatar image={profile.avatar}/>
-        <UserName><NameText>{profile.username}</NameText> <Gender number={profile.gender}/></UserName>
+        <UserName><NameText>{profile.nick_name}</NameText> <Gender number={profile.gender}/></UserName>
       </Profile>
-      <Close onClick={this.cancel} />
+      <Close onClick={this.handleCancel} />
     </Wrapper>;
   }
 }
@@ -232,28 +244,36 @@ class CreateMatching extends Component {
   room = null;
   profile = null;
 
-  async componentDidMount() {
-    const { profile, gameId } = this.props;
-    const {success, result, message} = await client.call('create_room',{uid: profile.uid, game_id: gameId, user_limit: 2});
-    this.profile = profile;
-    this.room = result.room_id;
+  componentDidMount() {
+    loading(async () => {
 
-    if (success) {
-      share.share({
-        image: window.location.origin + '/bottle-flip.jpg',
-        url: window.location.origin + `/#/invite/${gameId}/${this.room}`,
-        title: '这游戏真神，每天晚上不玩一下都睡不着觉！',
-        content: '进来和我一决高下吧，来吧~'
-      });
-    }
+      const { profile, gameId } = this.props;
+      const {success, result, message} = await client.call('create_room',{uid: profile.uid, game_id: gameId, user_limit: 2});
+      this.profile = profile;
+      this.room = result.room_id;
+
+      if (success) {
+        share.share({
+          image: window.location.origin + '/bottle-flip.jpg',
+          url: window.location.origin + `/#/invite/${gameId}/${this.room}`,
+          title: '这游戏真神，每天晚上不玩一下都睡不着觉！',
+          content: '进来和我一决高下吧，来吧~'
+        });
+      }
+
+    })()
   }
 
+
   cancel = async () => {
-    await client.call('out_room', {uid: this.profile.uid, room: this.room});
+    const { profile, gameId } = this.props;
+    await client.call('out_room', {uid: profile.uid, room: this.room});
     if(this.props.onCancel) {
       this.props.onCancel();
     }
   }
+
+  handleCancel = loading(this.cancel)
 
   render() {
     const { profile } = this.props;
@@ -263,10 +283,10 @@ class CreateMatching extends Component {
       <WatingTime/>
       <GameName>跳一跳</GameName>
       <Profile>
-        <Avatar/>
-        <UserName><NameText>{profile.username}</NameText> <Gender number={profile.gender}/></UserName>
+        <Avatar image={profile.avatar}/>
+        <UserName><NameText>{profile.nick_name}</NameText> <Gender number={profile.gender}/></UserName>
       </Profile>
-      <Close onClick={this.cancel} />
+      <Close onClick={this.handleCancel} />
     </Wrapper>;
   }
 }
@@ -281,11 +301,12 @@ class JoinMatching extends Component {
     }
   }
 
-  componentDidMount() {
-    const { profile, room, gameId } = this.props;
-    client.push('join_room', {room: room, uid: profile.uid, game_id: gameId});
-  }
+  handleCancel = loading(this.cancel)
 
+  componentDidMount() {
+      const { profile, room, gameId } = this.props;
+      client.call('join_room', {room: room, uid: profile.uid, game_id: gameId});
+  }
 
   render() {
     const { profile } = this.props;
@@ -295,10 +316,10 @@ class JoinMatching extends Component {
       <WatingTime/>
       <GameName>跳一跳</GameName>
       <Profile>
-        <Avatar/>
-        <UserName><NameText>{profile.username}</NameText> <Gender number={profile.gender}/></UserName>
+        <Avatar image={profile.avatar}/>
+        <UserName><NameText>{profile.nick_name}</NameText> <Gender number={profile.gender}/></UserName>
       </Profile>
-      <Close onClick={this.cancel}/>
+      <Close onClick={this.handleCancel}/>
     </Wrapper>;
   }
 }

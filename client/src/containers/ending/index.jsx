@@ -3,10 +3,14 @@ import styled from 'styled-components';
 
 import { Redirect, Link } from 'react-router-dom';
 
+import { Toast } from 'antd-mobile';
+
 import { AuthContext } from '../../context';
 
 import Badge from './badge';
 import Player from './player';
+
+import client from '../../client';
 
 
 const Wrapper = styled.div`
@@ -156,15 +160,182 @@ const BackButton = styled(Link).attrs({to: '/'})`
     margin-bottom: 5vw;
 `
 
-class Matching extends Component {
+class Ending extends Component {
+  
+  state = {
+    replay: null,
+    ready: {
+      mine: false,
+      opponent: false,
+    },
+    exit: {
+      mine: false,
+      opponent: false,
+    }
+  }
+
+  master = null
+  uids = new Map()
+
+  handleReplay = async () => {
+    const {profile, params} = this.props;
+
+
+    this.replayConfirm(profile.uid);
+
+    const promises = params.players
+      .filter(player => player.uid != profile.uid)
+      .map(player =>
+        client.call('user_message', {
+          uid: player.uid,
+          game_id: params.game_id,
+          data: {
+            type: 'replay.confirm',
+            uid: profile.uid,
+            room: params.room,
+          }
+        })
+      )
+
+    await Promise.all(promises);
+    
+  }
+
+  handleExit = async () => {
+    const {profile, params} = this.props;
+
+    this.replayExit(profile.uid);
+
+    const promises = params.players
+      .filter(player => player.uid != profile.uid)
+      .map(player =>
+        client.call('user_message', {
+          uid: player.uid,
+          game_id: params.game_id,
+          data: {
+            type: 'replay.exit',
+            uid: profile.uid,
+            room: params.room,
+          }
+        })
+      )
+
+    await Promise.all(promises);
+  }
+
+  handleUserMessage = data => {
+    const {profile, params} = this.props;
+    switch (data.type) {
+      case 'replay.confirm':
+        data.room == params.room && this.replayConfirm(data.uid);
+        break;
+      case 'replay.exit':
+        data.room == params.room && this.replayExit(data.uid);
+        break;
+      case 'replay.invite':
+        client.push('join_room', {room: data.room, uid: profile.uid, game_id: params.game_id});
+        break;
+    }
+  }
+
+  handleStart = data => {
+    this.setState({
+      replay: data
+    })
+  }
+
+  async replayExit(uid) {
+    const {profile, params} = this.props;
+    
+    if (profile.uid == uid) {
+      this.setState({
+        exit: {...this.state.exit, mine: true}
+      });
+    } else {
+      this.setState({
+        exit: {...this.state.exit, opponent: true}
+      });
+    }
+  }
+
+  async replayConfirm(uid) {
+    const {profile, params} = this.props;
+
+    if(profile.uid == this.master.uid ) {
+      this.uids.set(uid, true);
+    
+      if (this.uids.size == params.players.length) {
+        const {success, result, message} = await client.call('create_room',{uid: profile.uid, game_id: params.game_id, user_limit: 2});
+        const invites = params.players
+          .filter(player => player.uid != profile.uid)
+          .map(player =>
+            client.call('user_message', {
+              uid: player.uid,
+              game_id: params.game_id,
+              data: {
+                type: 'replay.invite',
+                room: result.room_id,
+              }
+            })
+          )
+      }
+    }
+
+    if (profile.uid == uid) {
+      this.setState({
+        ready: {...this.state.ready, mine: true}
+      });
+    } else {
+      this.setState({
+        ready: {...this.state.ready, opponent: true}
+      });
+    }
+  }
+
+  componentDidMount() {
+    const {profile, params} = this.props;
+
+    this.master = params.players[0];
+
+    client.on('notify.user_message', this.handleUserMessage);
+    client.on('notify.start', this.handleStart);
+  }
+
+  componentWillUnmount() {
+    client.off('notify.user_message', this.handleUserMessage);
+    client.off('notify.start', this.handleStart);
+  }
+
+  getRepay() {
+    const {ready, exit} = this.state;
+    if (exit.opponent) {
+      return {enabled: false, text: '对方已经离开'};
+    } else if (ready.mine && ready.opponent) {
+      return {enabled: false, text: '即将开局'};
+    } else if (ready.mine) {
+      return {enabled: false, text: '等待对方接受'};
+    } else if (ready.opponent) {
+      return {enabled: true, text: '对方请求再战'};
+    } else {
+      return {enabled: true, text: '再来一局'};
+    }
+  }
+
   render() {
     const {profile, params} = this.props;
-    if (params) {
+
+    if (params && this.state.replay) {
+      return <Redirect to={{
+          pathname: `/play/${params.game_id}`,
+          state: this.state.replay
+        }}/>
+    } else if (params) {
+      const {enabled, text} = this.getRepay();
       return (
         <Wrapper>
           <TopBadge type={params.result} avatar={profile.avatar}/>
           <Profile>
-              <Content>15 胜点</Content>
+              <Content>{params.win_point} 胜点</Content>
               <PlayerBox>
                   {
                     params.players.map(player => 
@@ -176,8 +347,8 @@ class Matching extends Component {
                   }
               </PlayerBox>
           </Profile>
-          <ReplayButton>再来一局</ReplayButton>
-          <BackButton>返回首页</BackButton>
+          <ReplayButton onClick={enabled ? this.handleReplay : () => {}}>{text}</ReplayButton>
+          <BackButton onClick={this.handleExit}>返回首页</BackButton>
         </Wrapper>
       );
     } else {
@@ -186,13 +357,17 @@ class Matching extends Component {
   }
 }
 
-export default class MatchingRoute extends Component {
+export default class EndingRoute extends Component {
   render() {
     const params = this.props.location.state;
-    return <AuthContext.Consumer>
-      {
-        ({profile}) => <Matching profile={profile} params={params}/>
-      }
-    </AuthContext.Consumer>;
+    if (params) {
+        return <AuthContext.Consumer>
+          {
+            ({profile}) => <Ending profile={profile} params={params}/>
+          }
+        </AuthContext.Consumer>;
+    } else {
+      return <Redirect to="/" />
+    }
   }
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"platform_server/anfeng"
@@ -14,8 +15,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 
-	"platform_server/libs/db"
 	"net/http"
+	"platform_server/libs/db"
 )
 
 type (
@@ -108,12 +109,12 @@ var (
 	PlatFormUser = make(map[string]map[string]*websocket.Conn) //在线的用户的信息
 	PfRedis      = NewRedis()                                  //平台redis
 	auth         = anfeng.Auth{
-		BaseURL:  "http://192.168.1.53:82",
+		BaseURL:  "http://i.anfeng.com",
 		ClientID: "101",
 	}
 	//数据写入通道
 	WriteChannel chan map[*websocket.Conn]interface{} = make(chan map[*websocket.Conn]interface{})
-	UIDS        = make(map[*websocket.Conn]string)
+	UIDS                                              = make(map[*websocket.Conn]string)
 )
 
 func init() {
@@ -123,7 +124,7 @@ func init() {
 
 //检查当前的数据格式
 
-func Gs(ws *websocket.Conn, req_data *ReqDat) error {
+func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 	Res := ResponeDat{}
 	Res.MessageId = req_data.MessageId
 
@@ -143,7 +144,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 	switch req_data.Cmd {
 	case AUTHORIZE:
-		authorizeURL := auth.AuthorizeURL("http://localhost:1323/auth/callback", "STATE")
+		authorizeURL := auth.AuthorizeURL("http://"+c.Request().Host+"/auth/callback", "STATE")
 		data := make(map[string]interface{})
 		data["url"] = authorizeURL
 		Res.ErrorCode = SUCESS_BACK
@@ -221,14 +222,14 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			break
 		}
 
-		fmt.Println("enter_game=>",game_id,uid)
+		fmt.Println("enter_game=>", game_id, uid)
 		//保存用户登录信息
 		login_key := fmt.Sprintf(CLIENT_LOGIN_KYE, game_id)
 		login_num := PfRedis.getSetNum(login_key)
 		PfRedis.addSet(login_key, uid)
 
-		online_key := fmt.Sprintf(ONLINE_KEY,uid)
-		PfRedis.Expire(online_key,time.Second * 3000)
+		online_key := fmt.Sprintf(ONLINE_KEY, uid)
+		PfRedis.Expire(online_key, time.Second*3000)
 
 		pg, pgerr := models.SaveLoginLog()
 
@@ -256,7 +257,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		}
 		PlatFormUser[game_id][uid] = ws
 
-
 		back_dat := make(map[string]interface{})
 		back_dat["online_num"] = login_num
 		back_dat["game_id"] = game_id
@@ -269,7 +269,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//创建房间
 	case CREATE_ROOM:
-
 		uid := UIDS[ws]
 		game_id := req_data.Data["game_id"].(string)
 		user_limit := int(req_data.Data["user_limit"].(float64))
@@ -290,7 +289,6 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//加入房间
 	case JOIN_ROOM:
-		//uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
 		uid := UIDS[ws]
 		game_id := req_data.Data["game_id"].(string)
 
@@ -404,8 +402,8 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		println("end")
 		//取消匹配
 	case JOIN_CANCEL:
-		uid := UIDS[ws]
 
+		uid := UIDS[ws]
 		game_id := req_data.Data["game_id"].(string)
 		PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
 		Res.ErrorCode = SUCESS_BACK
@@ -415,7 +413,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//退出玩家
 	case LOGOUT:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 
 		game_id := req_data.Data["game_id"].(string)
 		PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
@@ -468,7 +466,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		//信息传递
 	case ROOM_MESSAGE:
 
-		if _ ,ishad:= req_data.Data["game_id"].(string) ;!ishad{
+		if _, ishad := req_data.Data["game_id"].(string); !ishad {
 			Res.ErrorCode = FAILED_BACK
 			Res.Msg = "game_id is not found"
 			ws.WriteJSON(Res)
@@ -489,7 +487,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//断线重连
 	case RECONNECT:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 
 		game_id := req_data.Data["game_id"].(string)
 		if _, ok := req_data.Data["room"]; !ok {
@@ -563,92 +561,99 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 			result_num := getSetNum(res_key)
 			if result_num == user_limit {
 				//结果数据处理分发
-					rows, err := models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where room in('" + room + "') order by score desc ")
-					if err != nil {
-						fmt.Println(err.Error())
-					}
+				rows, err := models.Pg.(*db.Pg).Db.Query("select uid ,score ,game_id,message_id from gp_game_result where room in('" + room + "') order by score desc ")
+				if err != nil {
+					fmt.Println(err.Error())
+				}
 
-					scores := []Gmresult{}
-					for rows.Next() {
-						res_dat := Gmresult{}
-						uid := ""
-						game_id := ""
-						score := 0
-						message_id := ""
-						rows.Scan(&uid, &score, &game_id, &message_id)
-						res_dat.MessageID = message_id
-						res_dat.Uid = uid
-						res_dat.GameId = game_id
-						res_dat.Score = score
-						scores = append(scores, res_dat)
-					}
-					save_score, s_err := models.SaveWinScore()
-					if s_err != nil {
-						fmt.Println(s_err.Error())
-					}
-					//todo 现在处理的2人数据后期添加多人数据比较需要优化 game_conf 后期保存到redis中
-					if (scores[0].Score - scores[1].Score) > 0 {
-						fmt.Println("【游戏结果播报】",scores,game_id)
-						//game_id , play_num , win_num , uid , win_score
-						back_dat := make(map[string]string)
-						back_dat["result"] = "win"
-						back_dat["win_point"] = "15"
-						Res.Data = back_dat
-						Res.MessageId = scores[0].MessageID
+				scores := []Gmresult{}
+				for rows.Next() {
+					res_dat := Gmresult{}
+					uid := ""
+					game_id := ""
+					score := 0
+					message_id := ""
+					rows.Scan(&uid, &score, &game_id, &message_id)
+					res_dat.MessageID = message_id
+					res_dat.Uid = uid
+					res_dat.GameId = game_id
+					res_dat.Score = score
+					scores = append(scores, res_dat)
+				}
+				save_score, s_err := models.SaveWinScore()
+				if s_err != nil {
+					fmt.Println(s_err.Error())
+				}
+				//todo 现在处理的2人数据后期添加多人数据比较需要优化 game_conf 后期保存到redis中
+				if (scores[0].Score - scores[1].Score) > 0 {
+					fmt.Println("【游戏结果播报】", scores, game_id)
+					//game_id , play_num , win_num , uid , win_score
+					back_dat := make(map[string]string)
+					back_dat["result"] = "win"
+					back_dat["win_point"] = "15"
+					Res.Data = back_dat
+					Res.MessageId = scores[0].MessageID
 
-						con := PlatFormUser[scores[0].GameId][scores[0].Uid]
-						mp := make(map[*websocket.Conn]interface{})
-						mp[con] = Res
-						//game_id , play_num , win_num , uid , win_score
-						save_score.Exec(game_id, 1, 1, scores[0].Uid, 15)
-						WriteChannel <- mp
+					con := PlatFormUser[scores[0].GameId][scores[0].Uid]
+					mp := make(map[*websocket.Conn]interface{})
+					mp[con] = Res
+					//game_id , play_num , win_num , uid , win_score
+					save_score.Exec(game_id, 1, 1, scores[0].Uid, 15)
+					WriteChannel <- mp
 
-						back_dat["result"] = "lose"
-						back_dat["win_point"] = "0"
-						Res.Data = back_dat
-						Res.MessageId = scores[1].MessageID
-						con = PlatFormUser[scores[1].GameId][scores[1].Uid]
-						mp[con] = Res
-						save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
-						WriteChannel <- mp
+					back_dat["result"] = "lose"
+					back_dat["win_point"] = "0"
+					Res.Data = back_dat
+					Res.MessageId = scores[1].MessageID
+					con = PlatFormUser[scores[1].GameId][scores[1].Uid]
+					mp[con] = Res
+					save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
+					WriteChannel <- mp
 
-					}
+				}
 
-					if (scores[0].Score - scores[1].Score) == 0 {
-						fmt.Println("【游戏结果播报2】",scores)
-						back_dat := make(map[string]string)
-						back_dat["result"] = "draw"
-						back_dat["win_point"] = "0"
-						Res.Data = back_dat
-						Res.MessageId = scores[0].MessageID
-						fmt.Println(scores[0].GameId, scores[0].Uid)
-						con := PlatFormUser[scores[0].GameId][scores[0].Uid]
-						mp := make(map[*websocket.Conn]interface{})
-						mp[con] = Res
-						save_score.Exec(game_id, 1, 0, scores[0].Uid, 0)
-						WriteChannel <- mp
+				if (scores[0].Score - scores[1].Score) == 0 {
+					fmt.Println("【游戏结果播报2】", scores)
+					back_dat := make(map[string]string)
+					back_dat["result"] = "draw"
+					back_dat["win_point"] = "0"
+					Res.Data = back_dat
+					Res.MessageId = scores[0].MessageID
+					fmt.Println(scores[0].GameId, scores[0].Uid)
+					con := PlatFormUser[scores[0].GameId][scores[0].Uid]
+					mp := make(map[*websocket.Conn]interface{})
+					mp[con] = Res
+					save_score.Exec(game_id, 1, 0, scores[0].Uid, 0)
+					WriteChannel <- mp
 
-						back_dat["result"] = "draw"
-						back_dat["win_point"] = "0"
-						Res.Data = back_dat
-						Res.MessageId = scores[1].MessageID
-						con = PlatFormUser[scores[1].GameId][scores[1].Uid]
-						mp[con] = Res
-						save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
-						WriteChannel <- mp
+					back_dat["result"] = "draw"
+					back_dat["win_point"] = "0"
+					Res.Data = back_dat
+					Res.MessageId = scores[1].MessageID
+					con = PlatFormUser[scores[1].GameId][scores[1].Uid]
+					mp[con] = Res
+					save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
+					WriteChannel <- mp
 
-					}
-					defer save_score.Close()
+				}
+				defer save_score.Close()
 
 			}
 		}
 
 	//user message
 	case USER_MESSAGE:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := req_data.Data["uid"].(string)
 		game_id := req_data.Data["game_id"].(string)
-		data := req_data.Data
-		err := PlatFormUser[game_id][uid].WriteJSON(data)
+		data := req_data.Data["data"]
+
+		notify := ResponeDat{
+			ErrorCode: SUCESS_BACK,
+			Data:      data,
+			Msg:       USER_MESSAGE,
+		}
+
+		err := PlatFormUser[game_id][uid].WriteJSON(notify)
 		if err != nil {
 			Res.ErrorCode = FAILED_BACK
 			Res.Msg = err.Error()
@@ -664,11 +669,12 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 }
 
 func AuthCallback(c echo.Context) error {
-	accessToken, err := auth.AccessToken("http://localhost:1323/auth/callback", "STATE", c.QueryParam("code"))
+	accessToken, err := auth.AccessToken("http://"+c.Request().Host+"/auth/callback", "STATE", c.QueryParam("code"))
 	if err != nil {
 		return err
 	}
-	return c.Redirect(302, "http://localhost:3000/#/authorize/"+accessToken)
+
+	return c.Redirect(302, "http://"+strings.Split(c.Request().Host, ":")[0]+":3000/#/authorize/"+accessToken)
 }
 
 //发送广播
