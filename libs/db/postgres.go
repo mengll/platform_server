@@ -1,37 +1,40 @@
 package db
+
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/lib/pq"
+	"platform_server/config"
 	"strconv"
+
+	_ "github.com/lib/pq"
 )
 
 type (
 	Pg struct {
-		Db      *sql.DB
-    }
+		Db *sql.DB
+	}
 
 	Dbdat struct {
-		Host     string
-		User     string
-		PassWord string
-		Port     string
-		DataBase string
+		Host     string `json:"host"`
+		User     string `json:"user"`
+		PassWord string `json:"password"`
+		Port     string `json:"port"`
+		DataBase string `json:"database"`
 	}
 )
 
-var PgConfAdt Dbdat = Dbdat{
-	Host		: "192.168.1.241", //"192.168.1.53",
-	PassWord	: "adttianyan",
-	Port		: "4453",//"5432",
-	User		: "regina",
-	DataBase	: "game_platform",
+var PgConfAdt Dbdat
+
+func init() {
+	if err := config.Get("database", &PgConfAdt); err != nil {
+		panic(err)
+	}
 }
 
-type Pginterface interface{
+type Pginterface interface {
 	PgConnect()
 	Pgclose()
-	Prepure(str string) (*sql.Stmt,error)
+	Prepure(str string) (*sql.Stmt, error)
 	Ping() error
 }
 
@@ -74,9 +77,9 @@ func (self *Pg) Pgclose() {
 }
 
 //创建预处理语句  Prepare("insert into user(name, sex)values($1,$2)")
-func (self *Pg) Prepure(str string)(*sql.Stmt,error){
+func (self *Pg) Prepure(str string) (*sql.Stmt, error) {
 	Pgstmt, err := self.Db.Prepare(str)
-	return Pgstmt,err
+	return Pgstmt, err
 }
 
 //检查当前是链接
@@ -89,6 +92,6 @@ func (self *Pg) Ping() error {
 }
 
 //创建新的pg对象
-func NewPg() Pginterface{
+func NewPg() Pginterface {
 	return &Pg{}
 }

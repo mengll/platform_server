@@ -1,11 +1,13 @@
-package anfeng
+package auth
 
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"platform_server/config"
 	"strings"
 )
 
@@ -16,8 +18,8 @@ type Response interface {
 
 //Auth 安锋通行证登录
 type Auth struct {
-	BaseURL  string
-	ClientID string
+	BaseURL  string `json:"base_url"`
+	ClientID string `json:"client_id"`
 }
 
 //CIResponse 安锋CI框架API响应
@@ -169,8 +171,21 @@ func Unmarshal(request func() (*http.Response, error), v interface{}) error {
 
 	var data []byte
 	data, err = ioutil.ReadAll(resp.Body)
+	fmt.Println(string(data))
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(data, v)
 }
+
+//New Auth
+func New(name string) (auth *Auth) {
+	auth = &Auth{}
+	if err := config.Get(name, auth); err != nil {
+		panic(err)
+	}
+	return
+}
+
+//Default Auth
+var Default = New("auth")

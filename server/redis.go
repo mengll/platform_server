@@ -1,6 +1,7 @@
 package server
 
 import (
+	"platform_server/config"
 	"strconv"
 	"time"
 
@@ -24,9 +25,9 @@ type (
 	}
 
 	GsRedisManage struct {
-		Address   string
-		Passworld string
-		DB        int
+		Address   string `json:"address"`
+		Passworld string `json:"password"`
+		DB        int    `json:"db"`
 		RS        *redis.Client
 	}
 )
@@ -114,11 +115,11 @@ func (this *GsRedisManage) EXISTS(k string) (bool, error) {
 	return true, nil
 }
 
-//生成当前redis 对象
+//NewRedis 生成当前redis 对象
 func NewRedis() GsRedis {
 	redis_client := new(GsRedisManage)
-	redis_client.Address = "192.168.1.246:6379"
-	redis_client.Passworld = ""
-	redis_client.DB = 1
+	if err := config.Get("redis", redis_client); err != nil {
+		panic(err)
+	}
 	return redis_client
 }

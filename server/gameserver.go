@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"platform_server/anfeng"
+	"platform_server/auth"
 	"platform_server/models"
 
 	"github.com/gorilla/websocket"
@@ -108,10 +108,6 @@ const (
 var (
 	PlatFormUser = make(map[string]map[string]*websocket.Conn) //在线的用户的信息
 	PfRedis      = NewRedis()                                  //平台redis
-	auth         = anfeng.Auth{
-		BaseURL:  "http://i.anfeng.com",
-		ClientID: "101",
-	}
 	//数据写入通道
 	WriteChannel chan map[*websocket.Conn]interface{} = make(chan map[*websocket.Conn]interface{})
 	UIDS                                              = make(map[*websocket.Conn]string)
@@ -144,7 +140,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 
 	switch req_data.Cmd {
 	case AUTHORIZE:
-		authorizeURL := auth.AuthorizeURL("http://"+c.Request().Host+"/auth/callback", "STATE")
+		authorizeURL := auth.Default.AuthorizeURL("http://"+c.Request().Host+"/auth/callback", "STATE")
 		data := make(map[string]interface{})
 		data["url"] = authorizeURL
 		Res.ErrorCode = SUCESS_BACK
@@ -157,7 +153,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 		fmt.Println("login")
 
 		accessToken := req_data.Data["access_token"].(string)
-		profile, err := auth.Profile(accessToken)
+		profile, err := auth.Default.Profile(accessToken)
 		if err != nil {
 			Res.ErrorCode = FAILED_BACK
 			Res.Msg = err.Error()
@@ -522,7 +518,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 		Res.ErrorCode = SUCESS_BACK
 		Res.Msg = ONLINE
 
-		ws.WriteJSON(Res)
+		// ws.WriteJSON(Res)
 
 		//游戏结果上报
 	case GAME_RESULT:
@@ -668,7 +664,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 }
 
 func AuthCallback(c echo.Context) error {
-	accessToken, err := auth.AccessToken("http://"+c.Request().Host+"/auth/callback", "STATE", c.QueryParam("code"))
+	accessToken, err := auth.Default.AccessToken("http://"+c.Request().Host+"/auth/callback", "STATE", c.QueryParam("code"))
 	if err != nil {
 		return err
 	}
