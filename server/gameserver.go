@@ -617,6 +617,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 					save_score.Exec(game_id, 1, 1, scores[0].Uid, 15)
 					fmt.Printf("game_win => %v \n",mp)
 					WriteChannel <- mp
+					time.Sleep(time.Nanosecond)
 
 					back_dat["result"] = "lose"
 					back_dat["win_point"] = "0"
@@ -625,8 +626,9 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 					con_lose := PlatFormUser[scores[1].GameId][scores[1].Uid]
 					mp_lose := make(map[*websocket.Conn]interface{})
 					mp_lose[con_lose] = Res
-					fmt.Printf("game_lose => %v \n",mp_lose)
+
 					save_score.Exec(game_id, 1, 0, scores[1].Uid, 0)
+					fmt.Printf("game_lose => %v \n",mp_lose)
 					WriteChannel <- mp_lose
 
 				}
