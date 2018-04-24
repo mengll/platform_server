@@ -165,6 +165,9 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		}
 
 		// uid := strconv.Itoa(req_data.Data["uid"].(int) )
+
+		fmt.Printf("%v",profile)
+		fmt.Println("玩家性别:",profile.Gender)
 		uid := strconv.Itoa(profile.UID)
 		udat := new(WSDat)
 		udat.Uid = strconv.Itoa(profile.UID)
@@ -267,7 +270,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		//创建房间
 	case CREATE_ROOM:
 
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := UIDS[ws]
 		game_id := req_data.Data["game_id"].(string)
 		user_limit := int(req_data.Data["user_limit"].(float64))
 		new_room := createRoom(game_id)
@@ -401,7 +404,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 		println("end")
 		//取消匹配
 	case JOIN_CANCEL:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
+		uid := UIDS[ws]
 
 		game_id := req_data.Data["game_id"].(string)
 		PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
@@ -443,8 +446,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat) error {
 
 		//退出房间
 	case OUT_ROOM:
-		uid := strconv.Itoa(int(req_data.Data["uid"].(float64)))
-
+		uid := UIDS[ws]
 		if _, ok := req_data.Data["room"]; !ok {
 			Res.ErrorCode = FAILED_BACK
 			Res.Msg = "room not found"
@@ -753,32 +755,50 @@ func StrToMap(data string) map[string]interface{} {
 	return dat
 }
 
+//清除用户信息
+
+func ClearUser(game_id,uid string){
+
+	is_exists, err := PfRedis.EXISTS(fmt.Sprintf(ONLINE_KEY, uid))
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	//不存在
+	if !is_exists{
+		PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
+		PfRedis.delSet(fmt.Sprintf(CLIENT_LOGIN_KYE, game_id), uid) //从登陆的数据表中删除
+		delete(PlatFormUser[game_id], uid)                          //移除ws对象                    															//移除ws对象
+	}
+}
+
 //清除断线的用户信息
 func ClearnDisconnect() {
-	interval_clearn := time.NewTicker(time.Second * 60)
+	interval_clearn := time.NewTicker(time.Second * 3)
 	for {
 		select {
 		case <-interval_clearn.C:
 			fmt.Println("clear user")
 			for game_id, v := range PlatFormUser {
 				for uid, _ := range v {
-					fmt.Println(fmt.Sprintf(ONLINE_KEY, uid))
-					is_exists, err := PfRedis.EXISTS(fmt.Sprintf(ONLINE_KEY, uid))
-
-					if err != nil {
-						fmt.Println(err)
-						continue
-					}
-					println("is_usert", is_exists)
-					//不存在
-					if is_exists == false {
-						PfRedis.delSet(fmt.Sprintf(GAME_REDAY_LIST, game_id), uid)
-						PfRedis.delSet(fmt.Sprintf(CLIENT_LOGIN_KYE, game_id), uid) //从登陆的数据表中删除
-						delete(PlatFormUser[game_id], uid)                          //移除ws对象                    															//移除ws对象
-					}
-
+					ClearUser(game_id,uid) //清除用户信息
 				}
+
+				//删除缓存中的用户信息
+				users,errs := PfRedis.SMembers(fmt.Sprintf(CLIENT_LOGIN_KYE, game_id))
+
+				if errs != nil{
+					fmt.Println(errs.Error())
+					continue
+				}
+
+				for _,uid := range users{
+					ClearUser(game_id,uid)
+				}
+
 			}
+
 		}
 	}
 }
@@ -827,7 +847,7 @@ func GameResultList(c echo.Context) error {
 
 	game_id := vals.Get("game_id")
 	userres_list := []UserGameResult{}
-	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = '%s'"
+	runsql := "select u.nick_name,u.avatar,o.play_num,o.win_num,o.win_point from gp_users as u left join gp_user_game_info as o on u.uid = o.uid where o.game_id = '%s' order by o.win_point desc "
 	rows, err := models.Pg.(*db.Pg).Db.Query(fmt.Sprintf(runsql, game_id))
 
 	if err != nil {

@@ -111,7 +111,7 @@ func (this *GsRedisManage)EXISTS(k string)(bool,error){
 	}
 
 
-	return true,nil
+	return false,nil
 }
 
 //生成当前redis 对象

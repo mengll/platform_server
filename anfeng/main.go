@@ -34,7 +34,7 @@ type AccountProfileData struct {
 	Mobile   string `json:"mobile"`
 	Email    string `json:"email"`
 	Balance  string `json:"balance"`
-	Gender   int    `json:"gender"`
+	Gender   int   `json:"gender"`
 	Birthday string `json:"birthday"`
 	Province string `json:"province"`
 	City     string `json:"city"`
