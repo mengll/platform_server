@@ -23,7 +23,7 @@ func New(filename string) (c *Config) {
 }
 
 //Default 默认配置实例
-var Default = New("./config.json")
+var Default = New("./config.json.example")
 
 //Get 读取配置
 func (config *Config) Get(name string, v interface{}) (err error) {

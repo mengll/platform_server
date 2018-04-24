@@ -289,10 +289,17 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 		fmt.Println("join_room_message =>",req_data.Data["room"])
 		if _, ok := req_data.Data["room"]; !ok {
 			Res.ErrorCode = FAILED_BACK
-			Res.Msg = "room not found"
+			Res.Msg = "缺少房间信息"
 			ws.WriteJSON(Res)
 		}
+
 		room := req_data.Data["room"].(string)
+		room_exists ,room_err := PfRedis.EXISTS(room)
+		if room_err != nil || !room_exists{
+			Res.ErrorCode = FAILED_BACK
+			Res.Msg = "未找到房间"
+			ws.WriteJSON(Res)
+		}
 
 		//当前房间的人数
 		room_num := getSetNum(room)
@@ -322,7 +329,7 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 		} else {
 			//加入失败
 			Res.ErrorCode = FAILED_BACK
-			Res.Msg = "join_room_error"
+			Res.Msg = "房间已满"
 			ws.WriteJSON(Res)
 		}
 
