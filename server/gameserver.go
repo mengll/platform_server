@@ -80,7 +80,7 @@ func (self *PfError) Error() string {
 	return ""
 }
 
-//命令转化服
+//命令转化服o
 const (
 	START          = "af01"
 	LOGIN          = "af02"
@@ -662,6 +662,10 @@ func Gs(ws *websocket.Conn, req_data *ReqDat, c echo.Context) error {
 				}
 				defer save_score.Close()
 
+				PfRedis.DelKey(res_key)
+				PfRedis.DelKey(room)
+				limit_key := fmt.Sprintf("%s_limit", room)
+				PfRedis.DelKey(limit_key)
 			}
 		}
 

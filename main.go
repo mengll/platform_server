@@ -36,7 +36,7 @@ func WC() {
 
 		}
 
-		time.Sleep(time.Microsecond)
+		time.Sleep(time.Nanosecond)
 	}
 }
 
